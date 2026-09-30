@@ -3,14 +3,15 @@
 The one page that says what this backend is. If it isn't here, it isn't core.
 
 ## What the app does
-_One or two sentences. Who uses it, and what do they get?_
+> **A private record of a life, kept honestly, that argues with me toward something I chose.**
+> Remember. Warn. Argue. (Draft, carried over from the old build's `REMAKE.md`. Confirm or rewrite.)
 
-TODO
+History and lessons: [`PAST.md`](PAST.md).
 
 ## Stack
 | Layer | Choice | Why |
 |---|---|---|
-| Language / runtime | TODO | |
+| Language / runtime | TODO | Old build: C# WinForms + WebView2, local-only |
 | API style (REST / GraphQL / RPC) | TODO | |
 | Database | TODO | |
 | Auth | TODO | |

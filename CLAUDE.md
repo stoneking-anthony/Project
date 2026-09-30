@@ -6,6 +6,7 @@ Good ideas are welcome — they just don't get built the moment they show up.
 ## Before doing anything
 1. Read `docs/SPINE.md` — what the app is, the stack, the core data model, the current phase.
 2. Read `docs/FEATURES.md` — what's being built **now**, and what's parked.
+3. Before designing something new, check `docs/PAST.md`: the old build may have already tried it.
 
 ## Rules
 - **Only build what's in `Now`** in `docs/FEATURES.md`. If a request isn't there, ask whether to move it in.
