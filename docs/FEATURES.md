@@ -3,15 +3,20 @@
 Ideas flow **Inbox → Next → Now → Done**. Only `Now` gets built.
 
 ## Now (max 3)
-- [ ] TODO
+- [ ] **Spine**: the three tables + write/read library (mastermind chat)
+- [ ] **Atlas**: stock analyst chat (its own chat; built on its own branch, needs to move onto the spine)
+- [ ] **Compass**: daily planner (its own chat; built on its own branch, needs to move onto the spine)
 
 ## Next
 _Ordered. Top item moves into `Now` when a slot opens._
 
+1. Stream: free-text capture into the permanent record
+2. Merge Atlas and Compass into one app (see `CHATS.md`)
+
 ## Inbox
 _Dump ideas here, one line each, no judgment. Sort them later._
 
-- Stream: free-text capture into the permanent record (old build's #1, see `PAST.md`)
+- Robinhood through its agent tools (needs local Claude; see Bellwether in `CHATS.md`)
 - Canon: current facts with source, confidence, previous value
 - Confidence required on every number
 - Standard: one user-written sentence the app can't edit

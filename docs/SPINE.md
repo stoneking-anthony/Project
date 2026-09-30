@@ -11,10 +11,11 @@ History and lessons: [`PAST.md`](PAST.md).
 ## Stack
 | Layer | Choice | Why |
 |---|---|---|
-| Language / runtime | TODO | Old build: C# WinForms + WebView2, local-only |
-| API style (REST / GraphQL / RPC) | TODO | |
-| Database | TODO | |
+| Language / runtime | Node 22, plain HTML/CSS/JS, no build step (proposed) | Atlas and Compass already use it. Old build: C# WinForms, Windows-only |
+| API style | JSON over HTTP; chat replies stream as server-sent events | Atlas and Compass already do this |
+| Database | Postgres via Supabase (proposed) | Same data on laptop, PC and phone |
 | Auth | TODO | |
+| App type | Installable web app (see DECISIONS 001) | |
 | Hosting | TODO | |
 
 ## The spine (v2, proposed, confirm before code)
