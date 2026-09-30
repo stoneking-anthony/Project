@@ -1,29 +1,36 @@
 # Chats
 
-Several Claude chats work on this repo. They can't see each other, but they all read this repo, so **this file is how they talk.**
+Several Claude chats work on this repo. They can't see each other, but they all read this repo, so **this folder is how they talk.**
 
 ## Roles
 
-**Mastermind: the "Backend vibranium spine" chat.** Owns `SPINE.md`, `DECISIONS.md`, and the order of `FEATURES.md`. Decides how features fit together.
+**Mastermind: the "Backend vibranium spine" chat.** Owns `SPINE.md`, `DECISIONS.md`, `FEATURES.md`, and this file. Decides how features fit together.
 
 **Builders: every other chat.** Each builds one feature. A builder:
 1. **Starts from `main`** and runs `git pull origin main` before each work session, so it sees the latest spine.
-2. **Registers below**: one row with its feature, its branch, and what it's doing.
-3. **Stores nothing of its own.** Data goes through the spine (`events`). Until the spine exists, keep any temporary storage in one file and list it under *Storage to migrate*.
-4. **Doesn't edit `SPINE.md` or `DECISIONS.md`.** Needs a change? Add it to *Requests to the mastermind* and keep going.
-5. **Updates its row** at the end of each session: status, and what's next.
+2. **Owns one file: `docs/chats/<feature>.md`.** Status, next step, storage to migrate, and requests to the mastermind all go there. Builders never edit another chat's file, or this one. That way two chats never touch the same lines, and merges don't conflict.
+3. **Stores nothing of its own.** Data goes through the spine (`events`). Until the spine exists, keep temporary storage as it is and list it in your file.
+4. **Doesn't edit `SPINE.md` or `DECISIONS.md`.** Put a request in your file and keep going.
+5. **Uses only kinds from the registry in `SPINE.md`.** Need a new one? Request it.
+6. **Updates its file** at the end of each session.
 
-## Registry
+The mastermind answers requests by changing `SPINE.md`/`DECISIONS.md`, then moves each request to *Answered* in the builder's file with a pointer to the answer.
 
-| Chat | Feature | Branch | Status | Storage to migrate |
-|---|---|---|---|---|
-| Backend vibranium spine | Mastermind: spine, docs, coordination | `claude/serene-edison-rx2la6` | Spine v2 designed and simulated; no code yet | — |
-| Stock analyst chat styling | **Atlas**: stock analyst chat (ratings, SEC insider trades, confidence score) | `claude/hopeful-hypatia-ulqy2t` | Built, 4 commits, not on `main` | Watchlist and tracked people in browser `localStorage` |
-| Daily planning chat dashboard | **Compass**: daily planner (calendar, workouts, today's plan) | `claude/busy-pasteur-ke2d53` | Built; waiting on your planning rules | Plans as JSON files in `apps/compass/data/plans/`; workout split in `data/workouts.json` |
-| Agentic naming | **Bellwether**: name for the agent/Robinhood side | `claude/agentic-naming-b86w8o` | Name only. Found that Robinhood agent tools need local Claude, not web | — |
+## Chats
 
-## Requests to the mastermind
+| Chat | Feature | Branch | File |
+|---|---|---|---|
+| Backend vibranium spine | Mastermind | `claude/serene-edison-rx2la6` | this file |
+| Stock analyst chat styling | **Atlas**: stock analyst chat | `claude/hopeful-hypatia-ulqy2t` | [`chats/atlas.md`](chats/atlas.md) |
+| Daily planning chat dashboard | **Compass**: daily planner | `claude/busy-pasteur-ke2d53` | [`chats/compass.md`](chats/compass.md) |
+| Agentic naming | **Bellwether**: Robinhood / agent side | `claude/agentic-naming-b86w8o` | [`chats/bellwether.md`](chats/bellwether.md) |
 
-_Builders add one line here. The mastermind answers by changing `SPINE.md`/`DECISIONS.md` and deleting the line._
+## Order of work
 
-- (from mastermind review) **Atlas and Compass are two separate servers** (ports 3000 and 3001), each with its own `package.json`, and Atlas lives at the repo root. Merge them into one web app with shared server, design tokens, and Claude client: `app/` with features under `app/features/<name>/`.
+1. **Mastermind** builds the shell: `app/server.js`, `app/lib/spine.js` (write/read + kind registry), `app/lib/claude.js`, auth, shared design tokens. See `DECISIONS.md` 007.
+2. **Atlas and Compass** each move into `app/features/<name>/` and switch their storage to the kinds assigned in `SPINE.md`. Nothing moves until step 1 lands on `main`.
+3. **Bellwether** waits until Robinhood moves into `Now`.
+
+## Merging `main` into your branch
+
+This file was restructured on 2026-09-30. If `git pull origin main` conflicts on `docs/CHATS.md`, **take `main`'s version**. Your registry row and requests have already been moved into your file under `docs/chats/`.
