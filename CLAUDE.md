@@ -13,4 +13,5 @@ Good ideas are welcome — they just don't get built the moment they show up.
 - **New idea mid-task?** Add one line to `Inbox` in `docs/FEATURES.md` and keep going. Don't build it.
 - **Made a decision that's hard to undo** (database, auth, API shape, a library)? Add an entry to `docs/DECISIONS.md`.
 - **Changed the data model or stack?** Update `docs/SPINE.md` in the same commit.
+- **Features never get their own storage.** They write `events` and read derived views (see `docs/SPINE.md`). A new table needs a `docs/DECISIONS.md` entry.
 - Keep `Now` to at most 3 items. Finish before starting more.
