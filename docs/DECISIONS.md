@@ -46,6 +46,11 @@ Short log of choices that are hard to undo. Newest at the bottom.
 **Instead of:** One server per feature (ports 3000, 3001, …).
 
 ## 008 — `standard` holds any user-written text (2026-09-30)
-**Decision:** `standard` stores anything the user wrote as a rule for the app, any length, by key (`north_star`, `planner.rules`). Append-only; latest per key wins. Only the user writes it.
+**Decision:** `standard` stores anything the user wrote as a rule for the app, any length, by key (`north_star`). *(Planner rules moved to `brain`, see 009.)* Append-only; latest per key wins. Only the user writes it.
 **Why:** Compass's planning rules are exactly this: the user's words, read by the app, never edited by it. They run to several lines.
 **Instead of:** One sentence only; rules buried in prompt files.
+
+## 009 — Rules the user already wrote are read from `brain`, not retyped (2026-10-01)
+**Decision:** The planner reads the user's fixed week and training split live from the private `brain` repo (`SCHEDULE.md`, `body/gym.md`) using a read-only GitHub token kept in `.env`. Shifts and classes that move come from Google Calendar. `planner.rules` is no longer a `standard` key; `standard` keeps only rules typed into the app itself.
+**Why:** These rules already exist, the user maintains them there, and they're personal. Copying them into the app makes a second store, and putting them in a prompt file would publish them, because this repo is public. `brain` files carry `updated:` dates, so freshness works for free: a file older than ~10 days shows as a claim, not a fact.
+**Instead of:** A setup form; `standard` rows; rules in `prompts/daily-planner.md`.

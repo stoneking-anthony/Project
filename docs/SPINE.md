@@ -76,13 +76,14 @@ Only kinds a `Now` feature needs are registered. Builders request new ones in th
 | `stock.rating` | happening | `{ticker, rating, target, price, price_as_of, conviction}` | Atlas |
 | `plan.set` | snapshot, key = `date` | `{date, priorities: [text], blocks: [{start, end, label}]}` | Compass |
 | `plan.priority_done` | happening | `{date, priority, done}` | Compass |
-| `workout.split_set` | snapshot, one key | `{days: {mon..sun: {type, focus} or null}}` | Compass |
 | `workout.done` | happening | `{type, minutes, note?}` | Compass, later a workout feature |
 | `broker.positions` | snapshot, key = `account` | `{account, positions: [{symbol, shares, avg_cost}]}` | Bellwether (not yet) |
 
-**Registered sources:** `manual` · `gcal` (live) · `sec-edgar` (live) · `import:robinhood` (within 3d, not yet)
+**Registered sources:** `manual` · `gcal` (live) · `sec-edgar` (live) · `brain` (live) · `import:robinhood` (within 3d, not yet)
 
-**Standard keys:** `north_star` · `planner.rules`
+**Standard keys:** `north_star`
+
+**User-written rules that live in `brain`** (read live, DECISIONS 009): `SCHEDULE.md` (the fixed week), `body/gym.md` (the split)
 
 **Two words that sound alike:** *confidence* (spine) = how sure we are a number is true (`verified` / `estimated` / `stale`, derived from the source). *Conviction* (Atlas) = how strongly an analysis believes a call. It's an opinion, stored inside `stock.rating`.
 

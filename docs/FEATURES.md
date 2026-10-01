@@ -15,7 +15,7 @@ _Ordered. Top item moves into `Now` when a slot opens._
 ## Inbox
 _Dump ideas here, one line each, no judgment. Sort them later._
 
-- Robinhood through its agent tools (needs local Claude; see Bellwether in `CHATS.md`)
+- Bellwether: the money side. Bank, Robinhood (agent tools, needs local Claude), budget. See `docs/chats/bellwether.md`
 - Canon: current facts with source, confidence, previous value
 - Confidence required on every number
 - Standard: one user-written sentence the app can't edit

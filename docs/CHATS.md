@@ -23,13 +23,13 @@ The mastermind answers requests by changing `SPINE.md`/`DECISIONS.md`, then move
 | Backend vibranium spine | Mastermind | `claude/serene-edison-rx2la6` | this file |
 | Stock analyst chat styling | **Atlas**: stock analyst chat | `claude/hopeful-hypatia-ulqy2t` | [`chats/atlas.md`](chats/atlas.md) |
 | Daily planning chat dashboard | **Compass**: daily planner | `claude/busy-pasteur-ke2d53` | [`chats/compass.md`](chats/compass.md) |
-| Agentic naming | **Bellwether**: Robinhood / agent side | `claude/agentic-naming-b86w8o` | [`chats/bellwether.md`](chats/bellwether.md) |
+| Agentic naming | **Bellwether**: the money side (bank, Robinhood, budget) | `claude/agentic-naming-b86w8o` | [`chats/bellwether.md`](chats/bellwether.md) |
 
 ## Order of work
 
 1. **Mastermind** builds the shell: `app/server.js`, `app/lib/spine.js` (write/read + kind registry), `app/lib/claude.js`, auth, shared design tokens. See `DECISIONS.md` 007.
 2. **Atlas and Compass** each move into `app/features/<name>/` and switch their storage to the kinds assigned in `SPINE.md`. Nothing moves until step 1 lands on `main`.
-3. **Bellwether** waits until Robinhood moves into `Now`.
+3. **Bellwether** waits until it moves into `Now`.
 
 ## Merging `main` into your branch
 
