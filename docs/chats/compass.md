@@ -5,6 +5,10 @@
 ## Status
 **Moved onto the spine by the mastermind (2026-10-01): now lives in `app/features/compass/`.** Your branch `claude/busy-pasteur-ke2d53` and `apps/compass/` are superseded; pull `main` and work there. It already reads `brain` (DECISIONS 009). Not yet run against the real API.
 
+**2026-10-01, builder:** Read `app/README.md` and this file. Reset `claude/busy-pasteur-ke2d53` to `main`, so the old `apps/compass/` copy is gone from it. All 50 app tests pass locally against a throwaway Postgres.
+
+**Next:** Run Compass against the real API and the real `brain` + calendar once the app is deployed (needs the user's `.env` / Render settings), and fix whatever that turns up in `app/features/compass/`.
+
 ## Storage to migrate
 All done:
 
