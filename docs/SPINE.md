@@ -11,14 +11,14 @@ History and lessons: [`PAST.md`](PAST.md).
 ## Stack
 | Layer | Choice | Why |
 |---|---|---|
-| Language / runtime | Node 22, plain HTML/CSS/JS, no build step (proposed) | Atlas and Compass already use it. Old build: C# WinForms, Windows-only |
+| Language / runtime | Node 22, plain HTML/CSS/JS, no build step | Atlas and Compass already use it. Old build: C# WinForms, Windows-only |
 | API style | JSON over HTTP; chat replies stream as server-sent events | Atlas and Compass already do this |
-| Database | Postgres via Supabase (proposed) | Same data on laptop, PC and phone |
-| Auth | TODO | |
+| Database | Postgres on Supabase, through `pg` (DECISIONS 011) | Same data on every device; any Postgres host works |
+| Auth | One password + signed session cookie (DECISIONS 010) | One user |
 | App type | Installable web app (see DECISIONS 001) | |
-| Hosting | TODO | |
+| Hosting | Render, from `render.yaml` (DECISIONS 011) | Runs without a computer of yours |
 
-## The spine (v2, proposed, confirm before code)
+## The spine (v2, built in `app/`)
 
 **The spine holds the data. Features hold none.** Why: [`INSIGHTS.md`](INSIGHTS.md). Stress-tested in [`SIMULATION.md`](SIMULATION.md).
 
@@ -70,16 +70,16 @@ Only kinds a `Now` feature needs are registered. Builders request new ones in th
 | Kind | Shape | Payload (v1) | Written by |
 |---|---|---|---|
 | `note` | happening | `{text}` | Stream |
-| `chat.turn` | happening | `{conversation_id, feature, role, content}` (`content` = the full Claude content array) | any chat feature |
+| `chat.turn` | happening | `{conversation_id, feature, role, seq, content}` (`content` = the full Claude content array) | any chat feature |
 | `stock.watch` / `stock.unwatch` | happening | `{ticker}` | Atlas |
 | `insider.track` / `insider.untrack` | happening | `{name, cik?}` | Atlas |
-| `stock.rating` | happening | `{ticker, rating, target, price, price_as_of, conviction}` | Atlas |
-| `plan.set` | snapshot, key = `date` | `{date, priorities: [text], blocks: [{start, end, label}]}` | Compass |
+| `stock.rating` | happening | the whole rating card: `{ticker, rating, target, price, price_as_of, conviction, ...}` | Atlas |
+| `plan.set` | snapshot, key = `date` | `{date, headline, priorities: [text], blocks: [{start, end, title, kind, fixed}]}` | Compass |
 | `plan.priority_done` | happening | `{date, priority, done}` | Compass |
 | `workout.done` | happening | `{type, minutes, note?}` | Compass, later a workout feature |
 | `broker.positions` | snapshot, key = `account` | `{account, positions: [{symbol, shares, avg_cost}]}` | Bellwether (not yet) |
 
-**Registered sources:** `manual` · `gcal` (live) · `sec-edgar` (live) · `brain` (live) · `import:robinhood` (within 3d, not yet)
+**Registered sources:** `manual` · `gcal` (live) · `sec-edgar` (live) · `brain` (live) · `import:robinhood` (within 3d, not yet). The code is the source of truth: `app/lib/kinds.js` and `app/lib/sources.js`.
 
 **Standard keys:** `north_star`
 
@@ -88,4 +88,4 @@ Only kinds a `Now` feature needs are registered. Builders request new ones in th
 **Two words that sound alike:** *confidence* (spine) = how sure we are a number is true (`verified` / `estimated` / `stale`, derived from the source). *Conviction* (Atlas) = how strongly an analysis believes a call. It's an opinion, stored inside `stock.rating`.
 
 ## Current phase
-**Phase 0 — Foundation.** Get the spine working end to end before adding features.
+**Phase 1: the shell is built.** One app in `app/` with the spine, login, the heartbeat, and Atlas and Compass moved onto it. Next: deploy it, then grow features one at a time from `FEATURES.md`.

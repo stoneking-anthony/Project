@@ -3,10 +3,12 @@
 **Chat:** Stock analyst chat styling · **Branch:** `claude/hopeful-hypatia-ulqy2t`
 
 ## Status
-Built, 4 feature commits, not on `main`. Next: wait for the app shell (`CHATS.md`, *Order of work*), then move into `app/features/atlas/` and onto the spine.
+**Moved onto the spine by the mastermind (2026-10-01): now lives in `app/features/atlas/`.** Your branch `claude/hopeful-hypatia-ulqy2t` is superseded; pull `main` and work there. Default model is now `claude-opus-5-5` at effort `high` (was `claude-opus-5`); override with `ATLAS_MODEL`. Your tests moved to `app/test/atlas-*.test.js` and pass.
 
 ## Storage to migrate
-| Now | Moves to |
+All done:
+
+| Was | Now |
 |---|---|
 | `localStorage` `atlas.watchlist` | `stock.watch` / `stock.unwatch` events |
 | `localStorage` `atlas.people` | `insider.track` / `insider.untrack` events |
@@ -25,3 +27,10 @@ _None open._
 - **Confidence model** → Two different things (DECISIONS 003). Spine confidence means "how sure are we this number is true", derived from the source: `verified`/`estimated`/`stale`. Atlas's score is an opinion about a stock. It stays Atlas's, stored inside `stock.rating`. Don't use the bare word "confidence" in shared code.
 - **Libraries and Claude client** → One client in `app/lib/claude.js`, with the model set in one place (DECISIONS 007). Libraries are logged there.
 - **Auth before storage** → Agreed, it blocks. Supabase Auth, single user, is part of the shell (DECISIONS 006).
+
+- **2026-10-01 · What changed when you moved in**
+  - `localStorage` is gone. `public/app.js` loads and changes the watchlist and people through `api/watchlist` and `api/people`.
+  - The suggested people (Peter Thiel, Donald J. Trump) show until the first change, and are recorded then so the list doesn't jump.
+  - The server records every ```` ```rating ```` block as `stock.rating` when a reply finishes. The watchlist shows the latest one, and the confidence score is recomputed from it in the browser, never stored.
+  - Chat history replays from `chat.turn`, so it survives restarts.
+  - Insider lookups report to the heartbeat as `sec-edgar`.

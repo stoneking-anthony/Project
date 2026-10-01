@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compass Daily Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="theme-color" content="#0a0e13">
+  <script src="vendor/marked.min.js"></script>
+  <script src="vendor/purify.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="home-link" href="/" aria-label="Home" title="Home">&larr;</a>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="currentColor"/></svg>
+        </span>
+        <div>
+          <div class="brand-name">COMPASS</div>
+          <div class="brand-sub">Daily Planner</div>
+        </div>
+      </div>
+      <div class="today-date" id="today-date"></div>
+    </header>
+
+    <div class="layout">
+      <aside class="day" id="day" aria-label="Today">
+        <details class="day-panel" open>
+          <summary>Today</summary>
+          <section class="day-section">
+            <h2>Plan</h2>
+            <div id="plan-view"><p class="muted">No plan yet. Ask Compass to plan your day.</p></div>
+          </section>
+          <section class="day-section">
+            <h2>Workout</h2>
+            <div id="workout-view"></div>
+          </section>
+          <section class="day-section">
+            <h2>Calendar</h2>
+            <div id="calendar-view"></div>
+          </section>
+        </details>
+      </aside>
+
+      <div class="chat">
+        <main class="feed" id="feed" aria-live="polite">
+          <section class="empty" id="empty">
+            <h1 id="greeting">Let's plan your day.</h1>
+            <p>Compass looks at your calendar and today's workout, then helps you pick what matters and fit it in.</p>
+            <div class="chips">
+              <button class="chip" type="button">Plan my day</button>
+              <button class="chip" type="button">What's on today?</button>
+              <button class="chip" type="button">Replan the rest of my day</button>
+              <button class="chip" type="button">Evening check-in</button>
+            </div>
+          </section>
+        </main>
+
+        <form class="composer" id="composer">
+          <textarea id="input" rows="1" placeholder="What's on your mind for today?" autocomplete="off"></textarea>
+          <button id="send" type="submit" aria-label="Send">
+            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

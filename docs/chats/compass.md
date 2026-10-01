@@ -3,10 +3,12 @@
 **Chat:** Daily planning chat dashboard · **Branch:** `claude/busy-pasteur-ke2d53`
 
 ## Status
-Built in `apps/compass/`, 1 feature commit, not on `main`. Tested with a mock Claude API and calendar, not yet against the real API. Next: read the planning rules from `brain` (DECISIONS 009), then wait for the app shell and move into `app/features/compass/`.
+**Moved onto the spine by the mastermind (2026-10-01): now lives in `app/features/compass/`.** Your branch `claude/busy-pasteur-ke2d53` and `apps/compass/` are superseded; pull `main` and work there. It already reads `brain` (DECISIONS 009). Not yet run against the real API.
 
 ## Storage to migrate
-| Now | Moves to |
+All done:
+
+| Was | Now |
 |---|---|
 | `data/plans/<date>.json`, check marks edited in place | `plan.set` + `plan.priority_done` events |
 | `data/workouts.json` (placeholder split) | read live from `brain/body/gym.md`; drop the placeholder |
@@ -28,3 +30,8 @@ _None open._
 - **Workouts** → ~~`workout.split_set`~~ (superseded 2026-10-01: the split is read from `brain`) and `workout.done` (happening). Payloads are in the `SPINE.md` registry. These replace `body.workout` from the simulation.
 - **Chat history** → Yes, `chat.turn`, shared across features (DECISIONS 005).
 - **`GET /api/today`** → Becomes a shared derived view, `app/lib/views/today.js`, owned by the mastermind. Compass reads from it. Keep the current response shape; it's a good first cut.
+
+- **2026-10-01 · What changed when you moved in**
+  - `GET /api/today` became `app/lib/views/today.js` (also served at `/api/today` for the home screen). New fields: `schedule` (`SCHEDULE.md` with its age) and `workout.today` from `body/gym.md`. `data/workouts.json` is gone.
+  - Plans are `plan.set` + `plan.priority_done`. The check marks follow a priority's text, so they survive a re-plan (`app/lib/views/plan.js`).
+  - The prompt now tells the planner to work inside the user's fixed week, to let the calendar win when they disagree, and to ask once if the schedule is marked out of date.

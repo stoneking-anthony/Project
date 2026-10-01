@@ -27,8 +27,8 @@ The mastermind answers requests by changing `SPINE.md`/`DECISIONS.md`, then move
 
 ## Order of work
 
-1. **Mastermind** builds the shell: `app/server.js`, `app/lib/spine.js` (write/read + kind registry), `app/lib/claude.js`, auth, shared design tokens. See `DECISIONS.md` 007.
-2. **Atlas and Compass** each move into `app/features/<name>/` and switch their storage to the kinds assigned in `SPINE.md`. Nothing moves until step 1 lands on `main`.
+1. ~~**Mastermind** builds the shell.~~ Done 2026-10-01, in `app/`.
+2. ~~**Atlas and Compass** move into `app/features/<name>/`.~~ Done by the mastermind on 2026-10-01, so the app works end to end. **Your old branch is superseded: don't port it again.** Pull `main` and keep building in `app/features/<name>/`. Read `app/README.md` first.
 3. **Bellwether** waits until it moves into `Now`.
 
 ## Merging `main` into your branch

@@ -35,13 +35,13 @@ Short log of choices that are hard to undo. Newest at the bottom.
 **Instead of:** Server memory; per-feature chat stores. Size is watched: web search results make turns large, and the Supabase free tier is 500 MB. Check after the first two weeks.
 
 ## 006 — Auth before any personal data (2026-09-30)
-**Decision:** Supabase Auth, one allowed user (email magic link). Every API route requires a session. Row-level security on all three tables.
+**Decision:** ~~Supabase Auth, one allowed user (email magic link).~~ *(Superseded by 010.)* Every API route requires a session.
 **Why:** Once chat turns and plans are stored, the API holds personal data, and right now `/api/chat` is open to anyone who finds the URL.
 **Instead of:** No auth on a personal server.
 
 ## 007 — One app, shared shell (2026-09-30)
 **Decision:** One Node server. Layout: `app/server.js`, `app/lib/` (`spine.js`, `claude.js`, `auth.js`, `views/`), `app/public/` (shell + shared design tokens), `app/features/<name>/` (routes, prompt, UI). One Claude client in `app/lib/claude.js`; the default model is set once in `app/config.js`, and a feature may override it by env var.
-**Libraries:** `@anthropic-ai/sdk` (Claude), `marked` + `dompurify` (render model Markdown safely), `fast-xml-parser` (SEC filings), `node-ical` (calendar), `@supabase/supabase-js` (spine + auth).
+**Libraries:** `@anthropic-ai/sdk` (Claude), `marked` + `dompurify` (render model Markdown safely), `fast-xml-parser` (SEC filings), `node-ical` (calendar), `pg` (Postgres). *(Was `@supabase/supabase-js`; see 011.)*
 **Why:** Atlas and Compass already duplicate the server, the Claude client, and the design tokens.
 **Instead of:** One server per feature (ports 3000, 3001, …).
 
@@ -54,3 +54,13 @@ Short log of choices that are hard to undo. Newest at the bottom.
 **Decision:** The planner reads the user's fixed week and training split live from the private `brain` repo (`SCHEDULE.md`, `body/gym.md`) using a read-only GitHub token kept in `.env`. Shifts and classes that move come from Google Calendar. `planner.rules` is no longer a `standard` key; `standard` keeps only rules typed into the app itself.
 **Why:** These rules already exist, the user maintains them there, and they're personal. Copying them into the app makes a second store, and putting them in a prompt file would publish them, because this repo is public. `brain` files carry `updated:` dates, so freshness works for free: a file older than ~10 days shows as a claim, not a fact.
 **Instead of:** A setup form; `standard` rows; rules in `prompts/daily-planner.md`.
+
+## 010 — Login is one password and a signed cookie (2026-10-01)
+**Decision:** `APP_PASSWORD` (at least 12 characters) signs you in. The server sets an HttpOnly, SameSite=Lax session cookie for 30 days, signed with a key derived from the password, so changing the password signs every device out. Five wrong tries lock an address for 15 minutes. Cross-site POSTs are refused.
+**Why:** There is one user. A password works with any host and any database, needs no email round-trip, and has no third party in the login path. Row-level security isn't needed because only the server ever holds database credentials.
+**Instead of:** Supabase Auth magic links (006), passkeys (more setup than one user needs right now).
+
+## 011 — Hosting: Render runs the server, Supabase holds Postgres (2026-10-01)
+**Decision:** `render.yaml` deploys `app/` from `main` on every push. The database is Supabase Postgres, reached with plain `pg` through the session pooler. The schema applies itself on start.
+**Why:** The user has no computer free to run a server. Both can be set up from a phone browser and start free. Plain Postgres keeps the app portable: any Postgres host works by changing `DATABASE_URL`.
+**Instead of:** Running on the laptop (not available); `supabase-js` (ties data access to one vendor). Known cost: Render's free plan sleeps after 15 idle minutes, so the first open after that takes about a minute. The $7/month plan doesn't sleep.

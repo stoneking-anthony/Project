@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="theme-color" content="#0a0e13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shell.css">
+</head>
+<body>
+  <main class="page">
+    <div class="top">
+      <span class="label" id="date"></span>
+      <button class="signout" id="signout" type="button">Sign out</button>
+    </div>
+    <h1 id="greeting">Hello.</h1>
+
+    <nav class="features">
+      <a class="feature" href="/compass/" style="--c: var(--compass)">
+        <b>COMPASS</b><span>Plan the day around your calendar, schedule and training.</span>
+        <small id="compass-line" hidden></small>
+      </a>
+      <a class="feature" href="/atlas/" style="--c: var(--atlas)">
+        <b>ATLAS</b><span>Stock research: ratings, targets, insider trades.</span>
+        <small id="atlas-line" hidden></small>
+      </a>
+    </nav>
+
+    <section class="panel" aria-labelledby="beat-title">
+      <div class="label" id="beat-title">Heartbeat</div>
+      <ul class="beats" id="beats"><li class="muted">Checking…</li></ul>
+    </section>
+  </main>
+  <script>
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const h = new Date().getHours();
+    document.getElementById("greeting").textContent = h < 12 ? "Good morning." : h < 18 ? "Good afternoon." : "Good evening.";
+    document.getElementById("date").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+
+    const get = (url) => fetch(url).then((r) => {
+      if (r.status === 401) location.href = "/login";
+      return r.ok ? r.json() : Promise.reject(r);
+    });
+    const ago = (iso) => {
+      if (!iso) return "never";
+      const m = Math.round((Date.now() - new Date(iso)) / 60000);
+      return m < 60 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+    };
+    const WHAT = { gcal: "Google Calendar", brain: "brain repo", "sec-edgar": "SEC filings", manual: "things you log", "import:robinhood": "Robinhood (not connected)" };
+    const STATE = { ok: "working", stale: "stale", error: "failing", idle: "not used yet" };
+
+    get("/api/health").then(({ sources }) => {
+      const list = document.getElementById("beats");
+      list.innerHTML = "";
+      for (const s of sources) {
+        const li = document.createElement("li");
+        li.className = s.state;
+        li.innerHTML = `<span class="dot"></span><span class="name"></span><span class="what"></span>`;
+        li.querySelector(".name").textContent = WHAT[s.name] || s.name;
+        li.querySelector(".what").textContent = s.state === "error" ? `failing: ${s.error}` : `${STATE[s.state]} · last ok ${ago(s.lastOkAt)}`;
+        list.appendChild(li);
+      }
+    }).catch(() => (document.getElementById("beats").innerHTML = '<li class="error"><span class="dot"></span>Couldn\'t load.</li>'));
+
+    get(`/api/today?tz=${encodeURIComponent(tz)}`).then((t) => {
+      const line = document.getElementById("compass-line");
+      const parts = [];
+      if (t.plan) {
+        const done = t.plan.priorities.filter((p) => p.done).length;
+        parts.push(`${t.plan.headline || "Plan set"} · ${done}/${t.plan.priorities.length} done`);
+      } else parts.push("No plan yet today");
+      if (t.workout?.today) parts.push(t.workout.today.name.split(/ [—-] /)[0]);
+      line.textContent = parts.join(" · ");
+      line.hidden = false;
+    }).catch(() => {});
+
+    get("/atlas/api/watchlist").then(({ items }) => {
+      if (!items.length) return;
+      const line = document.getElementById("atlas-line");
+      line.textContent = `Watching ${items.map((i) => i.ticker).join(", ")}`;
+      line.hidden = false;
+    }).catch(() => {});
+
+    document.getElementById("signout").addEventListener("click", async () => {
+      await fetch("/api/logout", { method: "POST" });
+      location.href = "/login";
+    });
+  </script>
+</body>
+</html>
