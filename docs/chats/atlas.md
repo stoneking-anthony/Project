@@ -5,6 +5,8 @@
 ## Status
 **Moved onto the spine by the mastermind (2026-10-01): now lives in `app/features/atlas/`.** Your branch `claude/hopeful-hypatia-ulqy2t` is superseded; pull `main` and work there. Default model is now `claude-opus-5-5` at effort `high` (was `claude-opus-5`); override with `ATLAS_MODEL`. Your tests moved to `app/test/atlas-*.test.js` and pass.
 
+**2026-10-01 · Atlas chat:** pulled `main`, restarted `claude/hopeful-hypatia-ulqy2t` from it, and read `app/README.md`. All 50 app tests pass against a local Postgres. Next: build only inside `app/features/atlas/`, through `lib/spine.js` and registered kinds.
+
 ## Storage to migrate
 All done:
 
