@@ -14,6 +14,8 @@ _Ordered. Top item moves into `Now` when a slot opens._
 ## Inbox
 _Dump ideas here, one line each, no judgment. Sort them later._
 
+- Cheaper models for Atlas: a provider switch in `app/lib/claude.js` for US-hosted open models (Qwen, DeepSeek via OpenRouter/Together) plus a separate search API. Try cheaper Claude models first and measure a week of usage.
+- Usage tracker: show what each feature costs per day, from the API's usage numbers
 - Bellwether: the money side. Bank, Robinhood (agent tools, needs local Claude), budget. See `docs/chats/bellwether.md`
 - Canon: current facts with source, confidence, previous value
 - Confidence required on every number

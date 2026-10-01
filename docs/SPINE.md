@@ -89,3 +89,11 @@ Only kinds a `Now` feature needs are registered. Builders request new ones in th
 
 ## Current phase
 **Phase 1: the shell is built.** One app in `app/` with the spine, login, the heartbeat, and Atlas and Compass moved onto it. Next: deploy it, then grow features one at a time from `FEATURES.md`.
+
+### Deploy status (no secrets here, ever)
+- [x] Code merged to `main` (PR #2)
+- [x] Supabase project created (Data API off). The user has the session-pooler `DATABASE_URL` saved privately.
+- [ ] **Anthropic API key: not yet.** The user is holding off on cost (estimates: Compass ~3–8¢ a message, Atlas ~25–50¢). When ready: start with $10, auto-reload off, set a monthly limit. Consider `ATLAS_MODEL=claude-sonnet-5-5` to halve Atlas's cost.
+- [ ] Render blueprint applied (`APP_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`)
+- [ ] First sign-in, then Add to Home Screen
+- [ ] Optional sources: `GOOGLE_CALENDAR_ICS_URL`, `BRAIN_GITHUB_TOKEN` (made, not yet set anywhere), `SEC_USER_AGENT`
