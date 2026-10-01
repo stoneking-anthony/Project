@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+    <schemaVersion>X0508</schemaVersion>
+    <documentType>4</documentType>
+    <periodOfReport>2025-10-15</periodOfReport>
+    <issuer>
+        <issuerCik>0001849635</issuerCik>
+        <issuerName>Sample Media Corp.</issuerName>
+        <issuerTradingSymbol>SMPL</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0009999002</rptOwnerCik>
+            <rptOwnerName>SAMPLE PERSON B</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>true</isDirector>
+            <isOfficer>true</isOfficer>
+            <officerTitle>Chief Executive Officer</officerTitle>
+            <isTenPercentOwner>true</isTenPercentOwner>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-10-15</value></transactionDate>
+            <transactionCoding><transactionFormType>4</transactionFormType><transactionCode>P</transactionCode><equitySwapInvolved>0</equitySwapInvolved></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>5000</value></transactionShares>
+                <transactionPricePerShare><value>20</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>105000</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-10-15</value></transactionDate>
+            <transactionCoding><transactionFormType>4</transactionFormType><transactionCode>G</transactionCode><equitySwapInvolved>0</equitySwapInvolved></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>1000</value></transactionShares>
+                <transactionPricePerShare><value>0</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>104000</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+    </nonDerivativeTable>
+</ownershipDocument>

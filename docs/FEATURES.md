@@ -3,9 +3,8 @@
 Ideas flow **Inbox → Next → Now → Done**. Only `Now` gets built.
 
 ## Now (max 3)
-- [ ] **Spine + shell**: the three tables, `app/lib/spine.js` with the kind registry, auth, the shared server and Claude client (mastermind chat; DECISIONS 006, 007)
-- [ ] **Atlas**: stock analyst chat (its own chat; built on its own branch, needs to move onto the spine)
-- [ ] **Compass**: daily planner (its own chat; built on its own branch, needs to move onto the spine)
+- [ ] **Atlas**: stock analyst chat. On the spine in `app/features/atlas/`; its chat continues from there
+- [ ] **Compass**: daily planner. On the spine in `app/features/compass/`, reading `brain`; its chat continues from there
 
 ## Next
 _Ordered. Top item moves into `Now` when a slot opens._
@@ -26,3 +25,4 @@ _Dump ideas here, one line each, no judgment. Sort them later._
 - Heartbeat: app reports when its own pipelines stop
 
 ## Done
+- **Spine + shell** (2026-10-01): three tables with database-enforced append-only, kind registry, heartbeat, password login, one server and Claude client, installable on a phone. Atlas and Compass moved onto it. 50 tests.

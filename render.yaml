@@ -1,0 +1,32 @@
+# One-click hosting on Render (docs/DECISIONS.md 011). In Render: New > Blueprint,
+# pick this repo, and fill in the values it asks for.
+services:
+  - type: web
+    name: project-app
+    runtime: node
+    plan: free
+    rootDir: app
+    branch: main
+    autoDeploy: true
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: TIMEZONE
+        value: America/New_York
+      - key: APP_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_CALENDAR_ICS_URL
+        sync: false
+      - key: BRAIN_GITHUB_TOKEN
+        sync: false
+      - key: SEC_USER_AGENT
+        sync: false

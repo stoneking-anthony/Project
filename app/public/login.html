@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="theme-color" content="#0a0e13">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shell.css">
+</head>
+<body>
+  <main class="login">
+    <form id="login">
+      <div class="label">Private</div>
+      <h1>Sign in</h1>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required autofocus>
+      <button type="submit">Sign in</button>
+      <p class="error" id="error" role="alert"></p>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById("login");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const error = document.getElementById("error");
+      error.textContent = "";
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: document.getElementById("password").value }),
+      }).catch(() => null);
+      if (res?.ok) {
+        const next = new URLSearchParams(location.search).get("next") || "/";
+        location.href = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+      } else {
+        error.textContent = res ? (await res.json().catch(() => ({}))).error || "Couldn't sign in." : "No connection.";
+      }
+    });
+  </script>
+</body>
+</html>

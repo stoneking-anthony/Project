@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atlas Equity Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="theme-color" content="#0a0e13">
+  <script src="vendor/marked.min.js"></script>
+  <script src="vendor/purify.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="home-link" href="/" aria-label="Home" title="Home">&larr;</a>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 17l5-6 4 3 6-8 3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <div>
+          <div class="brand-name">ATLAS</div>
+          <div class="brand-sub">Equity Research Desk</div>
+        </div>
+      </div>
+      <div class="desk-status"><span class="live-dot"></span><span>Analyst online</span></div>
+    </header>
+
+    <nav class="watchlist is-empty" id="watchlist" aria-label="Watchlist">
+      <span class="wl-title">Watchlist</span>
+      <div class="wl-items"></div>
+      <span class="wl-hint">Add stocks from a rating card to track them here.</span>
+    </nav>
+
+    <nav class="watchlist people" id="people" aria-label="People you track">
+      <span class="wl-title">People</span>
+      <div class="wl-items"></div>
+      <form class="person-form" id="person-form" hidden>
+        <input id="person-input" type="text" placeholder="Full name" autocomplete="off" maxlength="80" aria-label="Person's full name">
+        <button type="submit">Track</button>
+      </form>
+      <button type="button" class="person-add" id="person-add">+ Person</button>
+    </nav>
+
+    <main class="feed" id="feed" aria-live="polite">
+      <section class="empty" id="empty">
+        <h1>Ask the analyst.</h1>
+        <p>Ratings, price targets, valuation and risks on any public company, backed by current market data.</p>
+        <div class="chips">
+          <button class="chip" type="button">Is NVDA a buy right now?</button>
+          <button class="chip" type="button">Compare MSFT and GOOGL on valuation</button>
+          <button class="chip" type="button">What moved the market this week?</button>
+          <button class="chip" type="button">Bull and bear case for TSLA</button>
+        </div>
+      </section>
+    </main>
+
+    <form class="composer" id="composer">
+      <textarea id="input" rows="1" placeholder="Ask about a stock or the market…" autocomplete="off"></textarea>
+      <button id="send" type="submit" aria-label="Send">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </form>
+    <p class="disclaimer">Research and analysis only, not personalized financial advice. Verify figures before trading.</p>
+  </div>
+  <script src="confidence.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
