@@ -96,4 +96,4 @@ Only kinds a `Now` feature needs are registered. Builders request new ones in th
 - [ ] **Anthropic API key: not yet.** The user is holding off on cost (estimates: Compass ~3–8¢ a message, Atlas ~25–50¢). When ready: start with $10, auto-reload off, set a monthly limit. Consider `ATLAS_MODEL=claude-sonnet-5-5` to halve Atlas's cost.
 - [ ] Render blueprint applied (`APP_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`)
 - [ ] First sign-in, then Add to Home Screen
-- [ ] Optional sources: `GOOGLE_CALENDAR_ICS_URL`, `BRAIN_GITHUB_TOKEN` (made, not yet set anywhere), `SEC_USER_AGENT`
+- [ ] Optional sources: `GOOGLE_CALENDAR_ICS_URL`, `BRAIN_GITHUB_TOKEN` (the user was creating it on 2026-10-01; unconfirmed), `SEC_USER_AGENT`
