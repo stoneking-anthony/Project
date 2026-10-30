@@ -72,7 +72,7 @@ test("cross-site posts are refused even with a session", async () => {
 });
 
 test("pages, features and vendor scripts are served once signed in", async () => {
-  for (const path of ["/", "/atlas/", "/compass/", "/atlas/app.js", "/compass/vendor/marked.min.js", "/manifest.webmanifest"]) {
+  for (const path of ["/", "/atlas/", "/compass/", "/atlas/app.js", "/atlas/timemachine.js", "/atlas/trade.js", "/compass/vendor/marked.min.js", "/manifest.webmanifest"]) {
     assert.equal((await call(path)).status, 200, path);
   }
   assert.equal((await call("/atlas/../server.js")).status, 404);

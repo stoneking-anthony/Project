@@ -35,6 +35,7 @@
       <span class="wl-title">Watchlist</span>
       <div class="wl-items"></div>
       <span class="wl-hint">Add stocks from a rating card to track them here.</span>
+      <button type="button" class="person-add movers-btn" id="movers-btn" hidden>What's moving?</button>
     </nav>
 
     <nav class="watchlist people" id="people" aria-label="People you track">
@@ -50,12 +51,12 @@
     <main class="feed" id="feed" aria-live="polite">
       <section class="empty" id="empty">
         <h1>Ask the analyst.</h1>
-        <p>Ratings, price targets, valuation and risks on any public company, backed by current market data.</p>
+        <p>Ratings, trade plans you can stress-test 10,000 times, insider trades, and what's moving your watchlist, backed by current market data.</p>
         <div class="chips">
           <button class="chip" type="button">Is NVDA a buy right now?</button>
           <button class="chip" type="button">Compare MSFT and GOOGL on valuation</button>
           <button class="chip" type="button">What moved the market this week?</button>
-          <button class="chip" type="button">Bull and bear case for TSLA</button>
+          <button class="chip" type="button">Plan a swing trade on AMD with a stop and target</button>
         </div>
       </section>
     </main>
@@ -69,6 +70,8 @@
     <p class="disclaimer">Research and analysis only, not personalized financial advice. Verify figures before trading.</p>
   </div>
   <script src="confidence.js"></script>
+  <script src="timemachine.js"></script>
+  <script src="trade.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

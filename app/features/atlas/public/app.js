@@ -194,6 +194,30 @@ function renderMarkdown(el, markdown, streaming) {
       }
     }
   }
+  // Trade plans run 10,000 simulations, so they render once the reply is complete.
+  for (const code of el.querySelectorAll("pre > code.language-plan")) {
+    const pre = code.parentElement;
+    let plan = null;
+    try {
+      plan = JSON.parse(code.textContent);
+    } catch {}
+    if (plan && !streaming) pre.replaceWith(planCard(plan));
+    else {
+      const pending = document.createElement("div");
+      pending.className = "plan-card pending";
+      pending.textContent = streaming ? "Building trade plan…" : "This trade plan couldn't be read.";
+      pre.replaceWith(pending);
+    }
+  }
+  for (const code of el.querySelectorAll("pre > code.language-movers")) {
+    const pre = code.parentElement;
+    let items = null;
+    try {
+      items = JSON.parse(code.textContent);
+    } catch {}
+    if (Array.isArray(items)) pre.replaceWith(moversList(items));
+    else if (streaming) pre.remove();
+  }
   for (const code of el.querySelectorAll("pre > code.language-followups")) {
     const pre = code.parentElement;
     let questions = null;
@@ -261,6 +285,7 @@ function renderWatchlist() {
   list.innerHTML = "";
   const items = watchlist.items();
   strip.classList.toggle("is-empty", items.length === 0);
+  document.getElementById("movers-btn").hidden = items.length === 0;
   for (const item of items) {
     const chip = document.createElement("div");
     chip.className = "wl-chip";
@@ -556,6 +581,12 @@ async function ask(text) {
     input.focus();
   }
 }
+
+// One brief for the whole watchlist: what moved today and why.
+document.getElementById("movers-btn").addEventListener("click", () => {
+  const tickers = watchlist.items().map((i) => i.ticker).slice(0, 8);
+  if (tickers.length) ask(`What's moving my watchlist today (${tickers.join(", ")})? Give me the movers brief.`);
+});
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
