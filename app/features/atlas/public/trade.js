@@ -34,68 +34,90 @@ function parseHorizon(text) {
 
 const fmtR = (r) => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`;
 const fmtPctPlain = (p) => `${Math.round(p * 100)}%`;
-const fmtUsd = (n) => `${n < 0 ? "−" : ""}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const fmtUsd = (n) => `${n < 0 ? "−" : n > 0 ? "+" : ""}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const HORIZON_CHOICES = [["today", "Today"], ["2 days", "2 days"], ["3 days", "3 days"], ["5 days", "1 week"], ["10 days", "2 weeks"], ["20 days", "4 weeks"]];
 
-function levelRow(label, price, entry, riskPerShare, cls) {
-  const dist = ((price - entry) / entry) * 100;
-  const r = riskPerShare ? Math.abs(price - entry) / riskPerShare : null;
-  return `<div class="lv ${cls}">
-    <span class="lv-label">${label}</span>
-    <span class="lv-price">${fmtPrice(price)}</span>
-    <span class="lv-dist">${dist >= 0 ? "+" : ""}${dist.toFixed(1)}%${r != null && cls !== "entry" ? ` · ${r.toFixed(1)}R` : ""}</span>
-  </div>`;
-}
-
-// Outcome split (thin segmented bar; the figures beside it carry the numbers)
-// and the distribution of results in R as bars on one baseline.
-function simResultHtml(sim, riskDollars) {
-  const seg = (p, cls) => (p > 0 ? `<span class="seg ${cls}" style="flex-grow:${p}"></span>` : "");
-  const max = Math.max(...sim.histogram.bins);
-  const { edges, bins } = sim.histogram;
-  const binLabel = (k) =>
-    k === 0 ? `below ${edges[0]}R` : k === edges.length ? `above ${edges.at(-1)}R` : `${edges[k - 1]}R to ${edges[k]}R`;
-  const binMid = (k) => (k === 0 ? edges[0] - 0.25 : k === edges.length ? edges.at(-1) + 0.25 : (edges[k - 1] + edges[k]) / 2);
-  const bars = bins
-    .map((b, k) => {
-      const tone = binMid(k) < 0 ? "loss" : "win";
-      const h = max ? Math.max(b ? 2 : 0, (b / max) * 100) : 0;
-      const share = ((b / sim.runs) * 100).toFixed(1);
-      return `<span class="hb ${tone}" style="height:${h}%" title="${binLabel(k)}: ${share}% of runs" role="img" aria-label="${binLabel(k)}: ${share}% of runs"></span>`;
-    })
-    .join("");
-  const dollars = riskDollars > 0 ? ` <span class="muted">≈ ${fmtUsd(sim.expectedR * riskDollars)} a trade</span>` : "";
-  const edgeWord = sim.pTarget > sim.breakevenWinRate + sim.marginOfError ? "above" : sim.pTarget < sim.breakevenWinRate - sim.marginOfError ? "below" : "about at";
-  return `
-    <p class="tm-headline">Target first in <b>${fmtPctPlain(sim.pTarget)}</b> of ${sim.runs.toLocaleString()} runs <span class="muted">(±${(sim.marginOfError * 100).toFixed(1)} pts)</span>. You need <b>${fmtPctPlain(sim.breakevenWinRate)}</b> to break even after costs: the simulated win rate is ${edgeWord} that.</p>
-    <div class="tm-split" aria-hidden="true">${seg(sim.pTarget, "win")}${seg(sim.pNeither, "open")}${seg(sim.pStop, "loss")}</div>
-    <div class="tm-figs">
-      <span><i class="sw win"></i>Target first <b>${fmtPctPlain(sim.pTarget)}</b></span>
-      <span><i class="sw open"></i>Still open at the end <b>${fmtPctPlain(sim.pNeither)}</b></span>
-      <span><i class="sw loss"></i>Stopped out <b>${fmtPctPlain(sim.pStop)}</b>${sim.gappedStopShare > 0.005 ? ` <span class="muted">(${fmtPctPlain(sim.gappedStopShare)} gapped past the stop)</span>` : ""}</span>
-    </div>
-    <div class="tm-stats">
-      <div><span class="label">Average result</span><b class="${sim.expectedR >= 0 ? "up" : "down"}">${fmtR(sim.expectedR)}</b>${dollars}</div>
-      <div><span class="label">Typical (median)</span><b>${fmtR(sim.medianR)}</b></div>
-      <div><span class="label">Worst 5%</span><b class="down">${fmtR(sim.worst5R)}</b></div>
-      <div><span class="label">Best 5%</span><b class="up">${fmtR(sim.best5R)}</b></div>
-    </div>
-    <div class="tm-hist" role="group" aria-label="How the ${sim.runs.toLocaleString()} runs ended, in R">${bars}</div>
-    <div class="tm-axis"><span>${edges[0]}R or worse</span><span>0</span><span>${edges.at(-1)}R or better</span></div>`;
-}
 let currentRiskDollars = RISK_DEFAULT; // shared by every card this visit; not stored
 
-function planCard(plan) {
+// Outcome split (thin bar; the figures beside it carry the numbers) and
+// how the runs ended, in dollars, as bars on one baseline.
+function simDetailsHtml(sim, riskDollars) {
+  const usd = (r) => fmtUsd(r * riskDollars);
+  const { edges, bins } = sim.histogram;
+  const max = Math.max(...bins);
+  const label = (k) =>
+    k === 0 ? `lost more than ${usd(-edges[0]).replace("+", "")}` : k === edges.length ? `made more than ${usd(edges.at(-1))}` : `${usd(edges[k - 1])} to ${usd(edges[k])}`;
+  const mid = (k) => (k === 0 ? edges[0] - 0.25 : k === edges.length ? edges.at(-1) + 0.25 : (edges[k - 1] + edges[k]) / 2);
+  const bars = bins
+    .map((b, k) => {
+      const share = ((b / sim.runs) * 100).toFixed(1);
+      const h = max ? Math.max(b ? 3 : 0, (b / max) * 100) : 0;
+      return `<span class="hb ${mid(k) < 0 ? "loss" : "win"}" style="height:${h}%" title="${label(k)}: ${share}% of runs" role="img" aria-label="${label(k)}: ${share}% of runs"></span>`;
+    })
+    .join("");
+  return `
+    <div class="tm-stats">
+      <div><span class="label">Average, no edge</span><b class="${sim.noEdgeR >= 0 ? "up" : "down"}">${usd(sim.noEdgeR)}</b><small>costs and gaps</small></div>
+      <div><span class="label">Typical</span><b>${usd(sim.medianR)}</b><small>median</small></div>
+      <div><span class="label">Worst 1 in 20</span><b class="down">${usd(sim.worst5R)}</b><small>${fmtR(sim.worst5R)}</small></div>
+      <div><span class="label">Best 1 in 20</span><b class="up">${usd(sim.best5R)}</b><small>${fmtR(sim.best5R)}</small></div>
+    </div>
+    <div class="tm-hist" role="group" aria-label="How the ${sim.runs.toLocaleString()} runs ended">${bars}</div>
+    <div class="tm-axis"><span>${usd(edges[0])} or worse</span><span>$0</span><span>${usd(edges.at(-1))} or better</span></div>
+    <p class="muted tm-fine">${sim.runs.toLocaleString()} runs, so the percentages can be off by about ±${(sim.marginOfError * 100).toFixed(1)} points. "R" is the amount you risk: 1R = ${fmtUsd(riskDollars).replace("+", "")} here.</p>`;
+}
+
+function verdictHtml(sim, plan, riskDollars) {
+  const seg = (p, cls) => (p > 0 ? `<span class="seg ${cls}" style="flex-grow:${p}"></span>` : "");
+  const loss = -sim.noEdgeR * riskDollars;
+  const edgeLine =
+    sim.pointsNeeded == null || loss < 1
+      ? `With no edge, this setup averages about <b>$0</b> a trade. It's a fair bet, so any profit has to come from your read being right.`
+      : `With no edge, this setup loses about <b>${fmtUsd(loss).replace("+", "")}</b> a trade to costs${sim.gappedStopShare > 0.05 ? " and gaps" : ""}. Your read has to make the target about <b>${sim.pointsNeeded < 1 ? "1 point" : `${Math.round(sim.pointsNeeded)} points`}</b> likelier than chance (${fmtPctPlain(sim.pTarget)}) to pay off.`;
+  const notes = (globalThis.reviewPlan?.(plan, sim) || [])
+    .map((n) => `<li class="note-${n.level}"><span aria-hidden="true">${n.level === "warn" ? "!" : "i"}</span>${escapeHtml(n.text)}</li>`)
+    .join("");
+  const t2 = sim.scaleOut && sim.pTarget2 > 0 ? ` <span class="muted">(${fmtPctPlain(sim.pTarget2)} went on to target 2)</span>` : "";
+  return `
+    <div class="tm-figs">
+      <span><i class="sw win"></i>Target ${sim.scaleOut ? "1 " : ""}hit first <b>${fmtPctPlain(sim.pTarget)}</b>${t2}</span>
+      <span><i class="sw loss"></i>Stopped out <b>${fmtPctPlain(sim.pStop)}</b></span>
+      <span><i class="sw open"></i>Neither, still open <b>${fmtPctPlain(sim.pNeither)}</b></span>
+    </div>
+    <div class="tm-split" aria-hidden="true">${seg(sim.pTarget, "win")}${seg(sim.pNeither, "open")}${seg(sim.pStop, "loss")}</div>
+    <p class="tm-edge">${edgeLine}</p>
+    ${notes ? `<ul class="tm-notes">${notes}</ul>` : ""}`;
+}
+
+let planSeq = 0;
+
+function planCard(original) {
+  const id = `plan${++planSeq}`;
+  const long = original.direction !== "short";
+  const firstTargets = (Array.isArray(original.targets) ? original.targets : [original.target]).filter(isNum);
+  const state = {
+    entry: original.entry,
+    stop: original.stop,
+    t1: firstTargets[0] ?? null,
+    t2: firstTargets[1] ?? null,
+    horizon: original.horizon || "today",
+  };
   const card = document.createElement("div");
   card.className = "plan-card";
-  const long = plan.direction !== "short";
-  const targets = (Array.isArray(plan.targets) ? plan.targets : [plan.target]).filter(isNum);
-  const entry = plan.entry;
-  const riskPerShare = isNum(entry) && isNum(plan.stop) ? Math.abs(entry - plan.stop) : null;
-  const horizon = parseHorizon(plan.horizon);
+  const horizonOptions = [...HORIZON_CHOICES];
+  if (!horizonOptions.some(([v]) => v === state.horizon)) horizonOptions.unshift([state.horizon, state.horizon]);
+
+  const levelInput = (key, label, cls) => `
+    <div class="lv ${cls}" data-key="${key}">
+      <label class="lv-label" for="${id}-${key}">${label}</label>
+      <input class="lv-price" id="${id}-${key}" type="number" step="0.01" inputmode="decimal" value="${isNum(state[key]) ? state[key] : ""}" ${key === "t2" ? 'placeholder="none"' : ""}>
+      <span class="lv-dist"></span>
+    </div>`;
   const levels = [
-    ...targets.map((t, i) => levelRow(targets.length > 1 ? `Target ${i + 1}` : "Target", t, entry, riskPerShare, "target")).reverse(),
-    isNum(entry) ? levelRow("Entry", entry, entry, riskPerShare, "entry") : "",
-    isNum(plan.stop) ? levelRow("Stop", plan.stop, entry, riskPerShare, "stop") : "",
+    levelInput("t2", "Target 2", "target"),
+    levelInput("t1", firstTargets.length > 1 ? "Target 1" : "Target", "target"),
+    levelInput("entry", "Entry", "entry"),
+    levelInput("stop", "Stop", "stop"),
   ];
   if (!long) levels.reverse();
 
@@ -103,60 +125,114 @@ function planCard(plan) {
     <div class="pc-head">
       <div>
         <div class="label">Trade plan</div>
-        <div class="pc-title"><b>${escapeHtml(plan.ticker || "")}</b> <span class="pc-dir ${long ? "long" : "short"}">${long ? "Long" : "Short"}</span></div>
+        <div class="pc-title"><b>${escapeHtml(original.ticker || "")}</b> <span class="pc-dir ${long ? "long" : "short"}">${long ? "Long" : "Short"}</span></div>
       </div>
-      <div class="pc-meta muted">${escapeHtml(horizon.label)}${plan.price_as_of ? `<br>prices as of ${escapeHtml(plan.price_as_of)}` : ""}</div>
+      <div class="pc-meta muted">${original.price_as_of ? `prices as of ${escapeHtml(original.price_as_of)}` : ""}</div>
     </div>
+    <section class="pc-verdict" aria-live="polite"></section>
     <div class="pc-levels">${levels.join("")}</div>
-    ${plan.entry_condition ? `<p class="pc-rule"><span class="label">Enter only if</span> ${escapeHtml(plan.entry_condition)}</p>` : ""}
-    ${plan.exit_rules ? `<p class="pc-rule"><span class="label">Exit plan</span> ${escapeHtml(plan.exit_rules)}</p>` : ""}
-    ${plan.invalidation ? `<p class="pc-rule"><span class="label">Wrong if</span> ${escapeHtml(plan.invalidation)}</p>` : ""}
-    <div class="pc-size">
-      <label for="risk-${plan.ticker}-${Date.now()}" class="label">Risk per trade</label>
-      <span class="pc-money">$<input type="number" min="1" step="10" inputmode="decimal" value="${currentRiskDollars}" aria-label="Dollars you're willing to lose on this trade"></span>
-      <span class="pc-size-out"></span>
+    <div class="pc-controls">
+      <label class="label" for="${id}-hz">Hold for</label>
+      <select id="${id}-hz">${horizonOptions.map(([v, l]) => `<option value="${escapeHtml(v)}"${v === state.horizon ? " selected" : ""}>${escapeHtml(l)}</option>`).join("")}</select>
+      <label class="label" for="${id}-risk">Risk</label>
+      <span class="pc-money">$<input id="${id}-risk" type="number" min="1" step="10" inputmode="decimal" value="${currentRiskDollars}"></span>
+      <button type="button" class="pc-reset" hidden>Reset to Atlas's plan</button>
     </div>
-    <div class="pc-tm">
-      <div class="pc-tm-head"><span class="label">Time machine</span><span class="muted pc-tm-basis"></span></div>
-      <div class="pc-tm-body"></div>
-      <p class="pc-tm-note muted">A simulation of random price paths at this stock's volatility, with no edge assumed. It shows the odds your levels create, not where the stock will go.</p>
-    </div>`;
+    <p class="pc-size"></p>
+    ${original.entry_condition ? `<p class="pc-rule"><span class="label">Enter only if</span> ${escapeHtml(original.entry_condition)}</p>` : ""}
+    ${original.exit_rules ? `<p class="pc-rule"><span class="label">Exit plan</span> ${escapeHtml(original.exit_rules)}</p>` : ""}
+    ${original.invalidation ? `<p class="pc-rule"><span class="label">Wrong if</span> ${escapeHtml(original.invalidation)}</p>` : ""}
+    <details class="pc-details">
+      <summary>How the 10,000 runs ended</summary>
+      <div class="pc-details-body"></div>
+    </details>
+    <p class="pc-tm-note muted"></p>`;
 
-  const riskInput = card.querySelector(".pc-size input");
-  riskInput.id = card.querySelector(".pc-size label").htmlFor;
-  const sizeOut = card.querySelector(".pc-size-out");
-  const body = card.querySelector(".pc-tm-body");
-  const basis = card.querySelector(".pc-tm-basis");
+  const $ = (sel) => card.querySelector(sel);
+  const verdict = $(".pc-verdict");
+  const details = $(".pc-details-body");
+  const sizeLine = $(".pc-size");
+  const note = $(".pc-tm-note");
+  const reset = $(".pc-reset");
+  const inputs = Object.fromEntries(["entry", "stop", "t1", "t2"].map((k) => [k, card.querySelector(`#${id}-${k}`)]));
+  const hz = card.querySelector(`#${id}-hz`);
+  const risk = card.querySelector(`#${id}-risk`);
+  const num = (el) => (el.value === "" ? null : Number(el.value));
 
-  const sim = globalThis.simulateTrade({
-    direction: long ? "long" : "short",
-    entry,
-    stop: plan.stop,
-    target: targets[0],
-    dailyVolPct: plan.daily_vol_pct,
-    horizon,
-    costBps: isNum(plan.cost_bps) ? plan.cost_bps : 10,
-  });
-
-  const update = () => {
-    const risk = Number(riskInput.value);
-    currentRiskDollars = risk > 0 ? risk : RISK_DEFAULT;
-    if (riskPerShare) {
-      const shares = Math.floor(currentRiskDollars / riskPerShare);
-      sizeOut.innerHTML = shares > 0
-        ? `= <b>${shares.toLocaleString()} shares</b> <span class="muted">(${fmtUsd(shares * entry)} position, stop ${fmtPrice(riskPerShare)} away)</span>`
-        : `<span class="muted">Less than one share at this stop distance.</span>`;
+  let timer = 0;
+  const run = () => {
+    const horizon = parseHorizon(state.horizon);
+    const riskPerShare = isNum(state.entry) && isNum(state.stop) ? Math.abs(state.entry - state.stop) : null;
+    for (const [key, el] of Object.entries(inputs)) {
+      const dist = card.querySelector(`.lv[data-key="${key}"] .lv-dist`);
+      const v = state[key];
+      if (!isNum(v) || !isNum(state.entry) || key === "entry") {
+        dist.textContent = "";
+        continue;
+      }
+      const pct = ((v - state.entry) / state.entry) * 100;
+      dist.textContent = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%${riskPerShare ? ` · ${(Math.abs(v - state.entry) / riskPerShare).toFixed(1)}R` : ""}`;
     }
-    if (sim.ok) body.innerHTML = simResultHtml(sim, Math.floor(currentRiskDollars / riskPerShare) * riskPerShare);
+    const shares = riskPerShare ? Math.floor(currentRiskDollars / riskPerShare) : 0;
+    const riskDollars = shares * (riskPerShare || 0);
+    if (shares > 0) {
+      const at = (p) => fmtUsd(shares * Math.abs(p - state.entry));
+      const costs = shares * state.entry * ((isNum(original.cost_bps) ? original.cost_bps : 10) / 10000);
+      sizeLine.innerHTML = `<b>${shares.toLocaleString()} shares</b> (${fmtUsd(shares * state.entry).replace("+", "")} position, about ${fmtUsd(costs).replace("+", "")} in trading costs). If stopped: <b class="down">−${at(state.stop).replace("+", "")}</b>${isNum(state.t1) ? ` · at target${isNum(state.t2) ? " 1" : ""}: <b class="up">${at(state.t1)}</b>` : ""}${isNum(state.t2) ? ` · at target 2: <b class="up">${at(state.t2)}</b>` : ""}`;
+    } else {
+      sizeLine.innerHTML = riskPerShare ? `<span class="muted">Less than one share fits this risk at this stop distance.</span>` : "";
+    }
+    const sim = globalThis.simulateTrade({
+      direction: long ? "long" : "short",
+      entry: state.entry,
+      stop: state.stop,
+      target: state.t1,
+      target2: state.t2,
+      dailyVolPct: original.daily_vol_pct,
+      horizon,
+      costBps: isNum(original.cost_bps) ? original.cost_bps : 10,
+    });
+    const plan = { ...original, entry: state.entry, dailyVolPct: original.daily_vol_pct };
+    if (sim.ok) {
+      verdict.innerHTML = verdictHtml(sim, plan, riskDollars || currentRiskDollars);
+      details.innerHTML = simDetailsHtml(sim, riskDollars || currentRiskDollars);
+      note.textContent = `Time machine: ${sim.runs.toLocaleString()} random price paths at ${original.daily_vol_pct}% daily volatility${original.vol_source ? ` (${original.vol_source})` : ""}, ${original.cost_bps ?? 10} bps costs, ${sim.scaleOut ? "half sold at target 1 and the stop moved to entry, " : ""}no edge assumed. It shows the odds your levels create, not where the stock will go.`;
+    } else {
+      verdict.innerHTML = `<p class="muted">The time machine can't run yet: the plan needs ${escapeHtml(sim.needs.join(", "))}.</p>`;
+      details.innerHTML = "";
+      note.textContent = "";
+    }
+    const edited = state.entry !== original.entry || state.stop !== original.stop || state.t1 !== (firstTargets[0] ?? null) || state.t2 !== (firstTargets[1] ?? null) || state.horizon !== (original.horizon || "today");
+    reset.hidden = !edited;
+    card.classList.toggle("edited", edited);
+  };
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(run, 120);
   };
 
-  if (sim.ok) {
-    basis.textContent = `${sim.runs.toLocaleString()} runs · ${plan.daily_vol_pct}% daily volatility${plan.vol_source ? ` (${plan.vol_source})` : ""} · ${(sim.costR).toFixed(2)}R costs`;
-  } else {
-    body.innerHTML = `<p class="muted">Can't simulate yet: the plan needs ${escapeHtml(sim.needs.join(", "))}.</p>`;
+  for (const [key, el] of Object.entries(inputs)) {
+    el.addEventListener("input", () => {
+      state[key] = num(el);
+      schedule();
+    });
   }
-  riskInput.addEventListener("input", update);
-  update();
+  hz.addEventListener("change", () => {
+    state.horizon = hz.value;
+    run();
+  });
+  risk.addEventListener("input", () => {
+    const v = Number(risk.value);
+    currentRiskDollars = v > 0 ? v : RISK_DEFAULT;
+    schedule();
+  });
+  reset.addEventListener("click", () => {
+    Object.assign(state, { entry: original.entry, stop: original.stop, t1: firstTargets[0] ?? null, t2: firstTargets[1] ?? null, horizon: original.horizon || "today" });
+    for (const [key, el] of Object.entries(inputs)) el.value = isNum(state[key]) ? state[key] : "";
+    hz.value = state.horizon;
+    run();
+  });
+  run();
   return card;
 }
 

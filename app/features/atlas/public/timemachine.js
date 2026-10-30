@@ -78,8 +78,10 @@
     return problems;
   }
 
-  // plan: { direction: "long"|"short", entry, stop, target, dailyVolPct,
+  // plan: { direction: "long"|"short", entry, stop, target, target2?, dailyVolPct,
   //         horizon: { days } or { minutesLeft }, costBps, runs, seed }
+  // With target2, the plan scales out: half at target, the stop moves to the
+  // entry (breakeven), and the rest runs to target2, the new stop, or the end.
   function simulateTrade(plan) {
     const problems = checkPlan(plan);
     if (problems.length) return { ok: false, needs: problems };
@@ -87,6 +89,7 @@
     const long = plan.direction !== "short";
     const runs = Math.max(500, Math.min(20000, Math.floor(plan.runs || 10000)));
     const { entry, stop, target } = plan;
+    const target2 = isNum(plan.target2) && (long ? plan.target2 > target : plan.target2 < target) ? plan.target2 : null;
     const sign = long ? 1 : -1;
     const riskPerShare = Math.abs(entry - stop);
     const rewardPerShare = Math.abs(target - entry);
@@ -110,48 +113,94 @@
     const t = makeStudentT(makeNormal(rand), T_DF);
 
     let hitTarget = 0;
+    let hitTarget2 = 0;
     let hitStop = 0;
     let gappedStops = 0;
+    let gapLoss = 0; // extra loss per share from stops filled past the stop at a gap
     const rMultiples = new Float64Array(runs);
     const exitSteps = new Float64Array(runs);
-    const toR = (exitPrice) => (sign * (exitPrice - entry) - costPerShare) / riskPerShare;
+    const outcomes = new Uint8Array(runs); // 0 open, 1 target, 2 stop
+    const move = (price) => sign * (price - entry);
 
     for (let i = 0; i < runs; i++) {
       let logP = Math.log(entry);
-      let outcome = null;
-      let exitPrice = entry;
-      for (let s = 1; s <= totalSteps; s++) {
+      let outcome = 0;
+      let banked = 0; // profit per share already taken
+      let size = 1; // share of the position still open
+      let activeStop = stop;
+      let lastPrice = entry;
+      let done = false;
+      for (let s = 1; s <= totalSteps && !done; s++) {
         const dayBoundary = gapSd > 0 && s > 1 && (s - 1) % stepsPerDay === 0;
         logP += drift + stepSd * t() + (dayBoundary ? gapSd * t() - 0.5 * gapSd * gapSd : 0);
         const price = Math.exp(logP);
-        const stopHit = long ? price <= stop : price >= stop;
-        const targetHit = long ? price >= target : price <= target;
+        lastPrice = price;
+        const stopHit = long ? price <= activeStop : price >= activeStop;
         if (stopHit) {
-          outcome = "stop";
           // During the session a stop fills at the stop. Only an overnight gap
           // jumps past it, and then it fills at the opening price.
-          exitPrice = dayBoundary ? price : stop;
-          if (dayBoundary) gappedStops++;
+          const fill = dayBoundary ? price : activeStop;
+          if (dayBoundary) {
+            if (outcome === 0) gappedStops++;
+            gapLoss += size * Math.abs(fill - activeStop);
+          }
+          banked += size * move(fill);
+          size = 0;
+          if (outcome === 0) outcome = 2;
           exitSteps[i] = s;
+          done = true;
           break;
         }
-        if (targetHit) {
-          outcome = "target";
-          exitPrice = target; // a limit order fills at the target, not better
-          exitSteps[i] = s;
-          break;
+        if (outcome === 0 && (long ? price >= target : price <= target)) {
+          outcome = 1; // a limit order fills at the target, not better
+          if (target2 === null) {
+            banked += move(target);
+            size = 0;
+            exitSteps[i] = s;
+            done = true;
+            break;
+          }
+          banked += 0.5 * move(target);
+          size = 0.5;
+          activeStop = entry;
         }
-        exitPrice = price;
+        if (target2 !== null && outcome === 1 && (long ? price >= target2 : price <= target2)) {
+          banked += size * move(target2);
+          size = 0;
+          hitTarget2++;
+          exitSteps[i] = s;
+          done = true;
+        }
       }
-      if (outcome === "stop") hitStop++;
-      else if (outcome === "target") hitTarget++;
-      else exitSteps[i] = totalSteps;
-      rMultiples[i] = toR(exitPrice);
+      if (!done) {
+        banked += size * move(lastPrice);
+        exitSteps[i] = totalSteps;
+      }
+      if (outcome === 1) hitTarget++;
+      else if (outcome === 2) hitStop++;
+      outcomes[i] = outcome;
+      rMultiples[i] = (banked - costPerShare) / riskPerShare;
     }
 
     const sorted = Float64Array.from(rMultiples).sort();
     const pct = (q) => sorted[Math.min(runs - 1, Math.floor(q * runs))];
     const mean = rMultiples.reduce((a, b) => a + b, 0) / runs;
+    // Average result when the target is reached first, and when stopped first.
+    const avgOf = (k) => {
+      let sum = 0;
+      let n = 0;
+      for (let i = 0; i < runs; i++) if (outcomes[i] === k) (sum += rMultiples[i]), n++;
+      return n ? sum / n : null;
+    };
+    const winR = avgOf(1);
+    const lossR = avgOf(2);
+    // With no edge, prices are a fair game, so the plan's average result is
+    // exactly what costs and gap slippage take. Computing that directly avoids
+    // the sampling noise in `mean`, which is as large as the cost itself.
+    const noEdgeR = -(costPerShare + gapLoss / runs) / riskPerShare;
+    // Each point of probability your analysis moves from "stopped" to "target"
+    // adds (winR - lossR) / 100. This is how many points it must add to break even.
+    const pointsNeeded = winR != null && lossR != null && winR > lossR ? (-noEdgeR / (winR - lossR)) * 100 : null;
     // 95% margin of error on the win rate from sampling alone.
     const pT = hitTarget / runs;
     const moe = 1.96 * Math.sqrt((pT * (1 - pT)) / runs);
@@ -173,9 +222,16 @@
       days,
       direction: long ? "long" : "short",
       rewardRisk: rr,
+      riskPerShare,
       breakevenWinRate: (riskPerShare + costPerShare) / (riskPerShare + rewardPerShare),
       costR: costPerShare / riskPerShare,
       pTarget: pT,
+      pTarget2: hitTarget2 / runs,
+      scaleOut: target2 !== null,
+      avgWinR: winR,
+      avgLossR: lossR,
+      pointsNeeded,
+      noEdgeR,
       pStop: hitStop / runs,
       pNeither: (runs - hitTarget - hitStop) / runs,
       marginOfError: moe,
@@ -192,6 +248,32 @@
     };
   }
 
+  // Plain-language warnings about how the levels fit the stock, worst first.
+  function reviewPlan(plan, sim) {
+    if (!sim?.ok) return [];
+    const notes = [];
+    const pct = (x) => `${Math.round(x * 100)}%`;
+    const stopPct = (sim.riskPerShare / plan.entry) * 100;
+    const noise = sim.days <= 1 ? plan.dailyVolPct * Math.sqrt(Math.max(sim.days, 0.05)) : plan.dailyVolPct;
+    if (stopPct < noise * 0.75) {
+      notes.push({ level: "warn", text: `The stop is ${stopPct.toFixed(1)}% away, inside a normal ${sim.days <= 1 ? "session's" : "day's"} move of about ${noise.toFixed(1)}%. Ordinary noise will hit it often.` });
+    }
+    if (sim.pNeither > 0.35) {
+      notes.push({ level: "warn", text: `In ${pct(sim.pNeither)} of runs neither the stop nor the target was reached in time. The target may be too far for the time you've given it.` });
+    }
+    if (sim.costR > 0.1) {
+      notes.push({ level: "warn", text: `Trading costs eat ${pct(sim.costR)} of what you risk on each trade. A wider stop with a smaller position costs less per dollar risked.` });
+    }
+    if (sim.gappedStopShare > 0.15) {
+      notes.push({ level: "info", text: `${pct(sim.gappedStopShare)} of stop-outs happened at an overnight gap, past the stop. You can lose more than planned when the stock opens far away.` });
+    }
+    if (sim.rewardRisk < 1) {
+      notes.push({ level: "info", text: `The target is closer than the stop, so you need to be right more often than you're wrong just to break even.` });
+    }
+    return notes;
+  }
+
   globalThis.simulateTrade = simulateTrade;
+  globalThis.reviewPlan = reviewPlan;
   globalThis.checkTradePlan = checkPlan;
 })();

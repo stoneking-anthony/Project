@@ -64,3 +64,42 @@ test("explains what's missing instead of guessing", () => {
   const wrongSide = simulateTrade({ ...base, stop: 101, horizon: { days: 1 } });
   assert.match(wrongSide.needs[0], /stop below and a target above/);
 });
+
+test("scaling out: half at target 1, stop to breakeven, rest to target 2", () => {
+  const r = simulateTrade({ ...base, target: 102, target2: 106, horizon: { days: 10 } });
+  assert.equal(r.scaleOut, true);
+  assert.ok(r.pTarget2 > 0 && r.pTarget2 < r.pTarget, "target 2 is reached less often than target 1");
+  near(r.expectedR, 0, 0.06, "still no edge without costs");
+  assert.ok(r.avgWinR > 0.5, `after target 1 the worst case is breakeven on the rest: ${r.avgWinR}`);
+});
+
+test("a second target on the wrong side is ignored", () => {
+  const r = simulateTrade({ ...base, target2: 101, horizon: { days: 2 } });
+  assert.equal(r.scaleOut, false);
+});
+
+test("points needed: none without costs, some with costs", () => {
+  const free = simulateTrade({ ...base, horizon: { minutesLeft: 390 } });
+  assert.equal(free.pointsNeeded, 0, "no costs, no gaps, nothing to make up");
+  near(free.noEdgeR, 0, 1e-12, "no-edge result");
+  const costly = simulateTrade({ ...base, costBps: 30, horizon: { minutesLeft: 390 } });
+  assert.ok(costly.pointsNeeded > 2 && costly.pointsNeeded < 15, `costs need an edge: ${costly.pointsNeeded}`);
+});
+
+test("review flags a stop inside normal noise", () => {
+  const plan = { ...base, stop: 99.5, target: 101, dailyVolPct: 3, horizon: { minutesLeft: 390 } };
+  const notes = globalThis.reviewPlan(plan, simulateTrade(plan)).map((n) => n.text);
+  assert.ok(notes.some((t) => /inside a normal session's move/.test(t)), notes.join(" | "));
+});
+
+test("review flags a target too far for the time given", () => {
+  const plan = { ...base, stop: 96, target: 115, dailyVolPct: 3, horizon: { minutesLeft: 390 } };
+  const notes = globalThis.reviewPlan(plan, simulateTrade(plan)).map((n) => n.text);
+  assert.ok(notes.some((t) => /too far for the time/.test(t)), notes.join(" | "));
+});
+
+test("review raises no warnings on a sensible plan (notes are allowed)", () => {
+  const plan = { ...base, stop: 95, target: 110, dailyVolPct: 3, costBps: 5, horizon: { days: 10 } };
+  const notes = globalThis.reviewPlan(plan, simulateTrade(plan));
+  assert.deepEqual(notes.filter((n) => n.level === "warn"), []);
+});
