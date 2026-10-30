@@ -476,3 +476,10 @@ button:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); ou
 .pc-copy { font: 500 12px var(--mono); color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 6px; padding: 6px 11px; cursor: pointer; }
 .pc-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pc-order-text { font: 12px var(--mono); overflow-wrap: anywhere; }
+
+/* Round 4: stale plans and the copy check */
+.pc-stale { font-size: 13px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--hold); background: color-mix(in srgb, var(--hold) 10%, transparent); display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.pc-refresh { font: 500 12px var(--mono); color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.pc-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pc-confirm { margin: 0; padding: 10px 12px 10px 28px; border-radius: 8px; background: color-mix(in srgb, var(--hold) 10%, transparent); font-size: 13px; display: grid; gap: 4px; }
+.pc-confirm-head { list-style: none; margin-left: -16px; }

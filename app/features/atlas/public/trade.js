@@ -123,7 +123,13 @@ function orderTicket(ticker, long, shares, st) {
   return `${long ? "BUY" : "SELL SHORT"} ${shares} ${ticker} limit ${p(st.entry)} · stop loss ${p(st.stop)} · ${exits}`;
 }
 
-function planCard(original) {
+const nyDate = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(d);
+
+function planCard(original, ctx = {}) {
+  const issuedAt = ctx.issuedAt ? new Date(ctx.issuedAt) : new Date();
+  // A plan written in an earlier session has old prices: show its age, and
+  // don't hand out an order built on them.
+  const stale = nyDate(issuedAt) !== nyDate(new Date());
   const id = `plan${++planSeq}`;
   const long = original.direction !== "short";
   const firstTargets = (Array.isArray(original.targets) ? original.targets : [original.target]).filter(isNum);
@@ -162,6 +168,7 @@ function planCard(original) {
       </div>
       <div class="pc-meta muted">${original.price_as_of ? `prices as of ${escapeHtml(original.price_as_of)}` : ""}</div>
     </div>
+    ${stale ? `<div class="pc-stale" role="status"><b>Written ${escapeHtml(issuedAt.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }))}.</b> These prices are from an earlier session, so the levels and odds may no longer fit. <button type="button" class="pc-refresh">Refresh this plan</button></div>` : ""}
     <section class="pc-verdict" aria-live="polite"></section>
     <div class="pc-levels">${levels.join("")}</div>
     <div class="pc-controls">
@@ -175,6 +182,7 @@ function planCard(original) {
     </div>
     <p class="pc-size"></p>
     <div class="pc-order"><button type="button" class="pc-copy">Copy order</button><span class="pc-order-text muted"></span></div>
+    <ul class="pc-confirm" hidden></ul>
     ${original.entry_condition ? `<p class="pc-rule"><span class="label">Enter only if</span> ${escapeHtml(original.entry_condition)}</p>` : ""}
     ${original.exit_rules ? `<p class="pc-rule"><span class="label">Exit plan</span> ${escapeHtml(original.exit_rules)}</p>` : ""}
     ${original.invalidation ? `<p class="pc-rule"><span class="label">Wrong if</span> ${escapeHtml(original.invalidation)}</p>` : ""}
@@ -197,12 +205,15 @@ function planCard(original) {
   let rangeTimer = 0;
   const num = (el) => (el.value === "" ? null : Number(el.value));
   const copyBtn = $(".pc-copy");
+  const confirmList = $(".pc-confirm");
+  let armed = false; // second tap needed when the card has warnings
+  let warnings = [];
   const orderText = $(".pc-order-text");
   let order = "";
 
   let timer = 0;
   const run = () => {
-    const horizon = parseHorizon(state.horizon);
+    const horizon = stale && /today|rest of/i.test(state.horizon) ? { minutesLeft: 390, label: "one full session" } : parseHorizon(state.horizon);
     const riskPerShare = isNum(state.entry) && isNum(state.stop) ? Math.abs(state.entry - state.stop) : null;
     for (const [key, el] of Object.entries(inputs)) {
       const dist = card.querySelector(`.lv[data-key="${key}"] .lv-dist`);
@@ -223,9 +234,12 @@ function planCard(original) {
     } else {
       sizeLine.innerHTML = riskPerShare ? `<span class="muted">Less than one share fits this risk at this stop distance.</span>` : "";
     }
-    order = orderTicket(original.ticker, long, shares, state);
+    order = stale ? "" : orderTicket(original.ticker, long, shares, state);
     copyBtn.hidden = !order;
-    orderText.textContent = order;
+    orderText.textContent = order || (stale ? "Refresh the plan to get an order with today's prices." : "");
+    confirmList.hidden = true;
+    armed = false;
+    copyBtn.textContent = "Copy order";
     const jumpDay = earningsDay(original.next_earnings, original.earnings_time);
     const knownMove = isNum(original.earnings_move_pct);
     const earningsMove = knownMove ? original.earnings_move_pct : isNum(state.vol) ? state.vol * 3 : null;
@@ -241,6 +255,7 @@ function planCard(original) {
       events: jumpDay && earningsMove ? [{ day: jumpDay, movePct: earningsMove }] : [],
     };
     const sim = globalThis.simulateTrade(simPlan);
+    warnings = sim.ok ? (globalThis.reviewPlan(simPlan, sim) || []).filter((n) => n.level === "warn").map((n) => n.text) : [];
     if (sim.ok) {
       const show = (range) => {
         verdict.innerHTML = verdictHtml(sim, simPlan, riskDollars || currentRiskDollars, range);
@@ -288,6 +303,17 @@ function planCard(original) {
     schedule();
   });
   copyBtn.addEventListener("click", async () => {
+    if (warnings.length && !armed) {
+      armed = true;
+      confirmList.innerHTML = `<li class="pc-confirm-head">Before you copy, this plan has ${warnings.length === 1 ? "a warning" : `${warnings.length} warnings`}:</li>` +
+        warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join("") +
+        `<li class="pc-confirm-head">Tap <b>Copy anyway</b> if you still want the order.</li>`;
+      confirmList.hidden = false;
+      copyBtn.textContent = "Copy anyway";
+      return;
+    }
+    armed = false;
+    confirmList.hidden = true;
     try {
       await navigator.clipboard.writeText(order);
       copyBtn.textContent = "Copied";
@@ -301,6 +327,9 @@ function planCard(original) {
     }
     setTimeout(() => (copyBtn.textContent = "Copy order"), 2000);
   });
+  card.querySelector(".pc-refresh")?.addEventListener("click", () =>
+    ask(`Refresh my ${original.ticker} ${long ? "long" : "short"} trade plan with today's prices. Keep the same idea unless it no longer works.`, "deep"),
+  );
   reset.addEventListener("click", () => {
     Object.assign(state, { entry: original.entry, stop: original.stop, t1: firstTargets[0] ?? null, t2: firstTargets[1] ?? null, horizon: original.horizon || "today", vol: isNum(original.daily_vol_pct) ? original.daily_vol_pct : null });
     volInput.value = state.vol ?? "";

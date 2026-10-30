@@ -138,7 +138,7 @@ export function exchangesFrom(messages) {
   for (const m of messages) {
     if (m.role === "user" && typeof m.content === "string") {
       const quick = m.content.startsWith(QUICK_PREFIX);
-      cur = { question: quick ? m.content.slice(QUICK_PREFIX.length) : m.content, quick, answer: "", insiders: [], sources: [] };
+      cur = { question: quick ? m.content.slice(QUICK_PREFIX.length) : m.content, quick, at: m.at ?? null, answer: "", insiders: [], sources: [] };
       out.push(cur);
       continue;
     }
@@ -171,9 +171,13 @@ async function getConversation(req, res) {
     if (!last) return sendJson(res, 200, { conversationId: null, exchanges: [] });
     id = last.payload.conversation_id;
   }
-  const [conversationId, history] = await loadConversation("atlas", id);
-  if (!history.length) return sendJson(res, 200, { conversationId: null, exchanges: [] });
-  sendJson(res, 200, { conversationId, exchanges: exchangesFrom(history).slice(-RESUME_EXCHANGES) });
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return sendJson(res, 200, { conversationId: null, exchanges: [] });
+  const turns = await list("chat.turn", { match: { conversation_id: id, feature: "atlas" }, limit: 10_000 });
+  if (!turns.length) return sendJson(res, 200, { conversationId: null, exchanges: [] });
+  turns.sort((a, b) => a.payload.seq - b.payload.seq);
+  // Each question keeps when it was asked, so old trade plans show their age.
+  const messages = turns.map((t) => ({ role: t.payload.role, content: t.payload.content, at: t.occurredAt }));
+  sendJson(res, 200, { conversationId: id, exchanges: exchangesFrom(messages).slice(-RESUME_EXCHANGES) });
 }
 
 // The watchlist, each ticker with the latest rating Atlas issued for it.

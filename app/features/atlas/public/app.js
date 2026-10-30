@@ -177,7 +177,8 @@ function followupChips(questions) {
   return row;
 }
 
-function renderMarkdown(el, markdown, streaming) {
+// ctx.issuedAt: when the reply was written (resumed replies are older).
+function renderMarkdown(el, markdown, streaming, ctx = {}) {
   el.innerHTML = DOMPurify.sanitize(marked.parse(markdown));
 
   for (const code of el.querySelectorAll("pre > code.language-rating")) {
@@ -201,7 +202,7 @@ function renderMarkdown(el, markdown, streaming) {
     try {
       plan = JSON.parse(code.textContent);
     } catch {}
-    if (plan && !streaming) pre.replaceWith(planCard(plan));
+    if (plan && !streaming) pre.replaceWith(planCard(plan, ctx));
     else {
       const pending = document.createElement("div");
       pending.className = "plan-card pending";
@@ -486,8 +487,8 @@ function showExchange(ex) {
   addUserMessage(ex.question, ex.quick ? "quick" : "deep");
   const view = addAnalystMessage();
   view.status.remove();
-  view.msg.querySelector(".byline span").textContent = "EQUITY RESEARCH · EARLIER";
-  renderMarkdown(view.body, ex.answer, false);
+  view.msg.querySelector(".byline span").textContent = `EQUITY RESEARCH · ${ex.at ? new Date(ex.at).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toUpperCase() : "EARLIER"}`;
+  renderMarkdown(view.body, ex.answer, false, { issuedAt: ex.at });
   for (const data of ex.insiders) view.insiders.appendChild(insiderCard(data));
   if (ex.sources.length) view.msg.appendChild(sourcesList(ex.sources));
 }

@@ -172,6 +172,7 @@ test("Atlas: the last conversation comes back on reload", async () => {
   const last = latest.exchanges.at(-1);
   assert.equal(last.question, "Insiders at ZZZZ?", "the quick prefix is hidden");
   assert.equal(last.quick, true);
+  assert.ok(!Number.isNaN(Date.parse(last.at)), "each question keeps when it was asked");
   assert.equal(last.answer, "No filings.");
   assert.deepEqual(last.sources, [{ url: "https://example.com/a", title: "A" }]);
   const byId = await (await call(`/atlas/api/conversation?id=${id}`)).json();
