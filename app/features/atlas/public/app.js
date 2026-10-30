@@ -300,7 +300,7 @@ function renderWatchlist() {
       </button>
       <button type="button" class="wl-remove" aria-label="Remove ${escapeHtml(item.ticker)} from watchlist">×</button>`;
     chip.querySelector(".wl-open").addEventListener("click", () =>
-      ask(`What's the latest on ${item.ticker}? Has your view changed?`),
+      ask(`What's the latest on ${item.ticker}? Has your view changed?`, "deep"),
     );
     chip.querySelector(".wl-remove").addEventListener("click", () => watchlist.remove(item.ticker));
     list.appendChild(chip);
@@ -345,7 +345,7 @@ function renderPeople() {
       <button type="button" class="wl-open" title="Scan disclosed trades by ${escapeHtml(name)}"><b>${escapeHtml(name)}</b></button>
       <button type="button" class="wl-remove" aria-label="Stop tracking ${escapeHtml(name)}">×</button>`;
     chip.querySelector(".wl-open").addEventListener("click", () =>
-      ask(`Scan the latest disclosed stock trades by ${name}. What did they buy or sell recently?`),
+      ask(`Scan the latest disclosed stock trades by ${name}. What did they buy or sell recently?`, "deep"),
     );
     chip.querySelector(".wl-remove").addEventListener("click", () => people.remove(name));
     list.appendChild(chip);
@@ -452,18 +452,69 @@ function insiderCard(data) {
   return card;
 }
 
+function sourcesList(sources) {
+  const details = document.createElement("details");
+  details.className = "sources";
+  details.innerHTML = `<summary>SOURCES (${sources.length})</summary><ol>${sources
+    .map((s) => `<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></li>`)
+    .join("")}</ol>`;
+  return details;
+}
+
 function timestamp() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function addUserMessage(text) {
+function addUserMessage(text, depth) {
   const msg = document.createElement("div");
   msg.className = "msg msg-user";
   const bubble = document.createElement("div");
   bubble.className = "bubble";
   bubble.textContent = text;
+  if (depth === "quick") bubble.dataset.depth = "Quick";
   msg.appendChild(bubble);
   feed.appendChild(msg);
+}
+
+// The Quick / Deep switch by the message box. Quick is cheaper and faster.
+function currentDepth() {
+  return document.querySelector('input[name="depth"]:checked')?.value === "deep" ? "deep" : "quick";
+}
+
+// Shows a stored conversation again: questions, answers, insider tables, sources.
+function showExchange(ex) {
+  addUserMessage(ex.question, ex.quick ? "quick" : "deep");
+  const view = addAnalystMessage();
+  view.status.remove();
+  view.msg.querySelector(".byline span").textContent = "EQUITY RESEARCH · EARLIER";
+  renderMarkdown(view.body, ex.answer, false);
+  for (const data of ex.insiders) view.insiders.appendChild(insiderCard(data));
+  if (ex.sources.length) view.msg.appendChild(sourcesList(ex.sources));
+}
+
+async function resume() {
+  try {
+    const { conversationId: id, exchanges } = await api("api/conversation");
+    if (!id || !exchanges.length || conversationId) return;
+    conversationId = id;
+    empty?.remove();
+    const note = document.createElement("p");
+    note.className = "resume-note";
+    note.textContent = `Picking up where you left off (${exchanges.length} earlier question${exchanges.length > 1 ? "s" : ""}).`;
+    feed.appendChild(note);
+    exchanges.forEach(showExchange);
+    scrollToBottom();
+  } catch (err) {
+    console.warn("Couldn't load the last conversation:", err.message);
+  }
+}
+
+function newChat() {
+  if (busy) return;
+  conversationId = null;
+  feed.innerHTML = "";
+  feed.appendChild(empty);
+  input.focus();
 }
 
 function addAnalystMessage() {
@@ -511,13 +562,14 @@ async function* readEvents(response) {
   }
 }
 
-async function ask(text) {
+// depth: "quick" or "deep"; defaults to the switch by the message box.
+async function ask(text, depth = currentDepth()) {
   if (busy || !text.trim()) return;
   busy = true;
   sendBtn.disabled = true;
   empty?.remove();
 
-  addUserMessage(text);
+  addUserMessage(text, depth);
   const view = addAnalystMessage();
   scrollToBottom();
 
@@ -533,7 +585,7 @@ async function ask(text) {
     const response = await fetch("api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId, message: text }),
+      body: JSON.stringify({ conversationId, message: text, depth }),
     });
     if (response.status === 401) location.href = `/login?next=${encodeURIComponent(location.pathname)}`;
     if (!response.ok) {
@@ -551,12 +603,7 @@ async function ask(text) {
       } else if (event === "insiders") {
         view.insiders.appendChild(insiderCard(data));
       } else if (event === "sources") {
-        const details = document.createElement("details");
-        details.className = "sources";
-        details.innerHTML = `<summary>SOURCES (${data.sources.length})</summary><ol>${data.sources
-          .map((s) => `<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></li>`)
-          .join("")}</ol>`;
-        view.msg.appendChild(details);
+        view.msg.appendChild(sourcesList(data.sources));
       } else if (event === "error") {
         const line = document.createElement("p");
         line.className = "error-line";
@@ -585,7 +632,7 @@ async function ask(text) {
 // One brief for the whole watchlist: what moved today and why.
 document.getElementById("movers-btn").addEventListener("click", () => {
   const tickers = watchlist.items().map((i) => i.ticker).slice(0, 8);
-  if (tickers.length) ask(`What's moving my watchlist today (${tickers.join(", ")})? Give me the movers brief.`);
+  if (tickers.length) ask(`What's moving my watchlist today (${tickers.join(", ")})? Give me the movers brief.`, "deep");
 });
 
 form.addEventListener("submit", (e) => {
@@ -609,5 +656,8 @@ input.addEventListener("input", () => {
 });
 
 for (const chip of document.querySelectorAll(".chip")) {
-  chip.addEventListener("click", () => ask(chip.textContent));
+  chip.addEventListener("click", () => ask(chip.textContent, "deep"));
 }
+
+document.getElementById("new-chat").addEventListener("click", newChat);
+resume();

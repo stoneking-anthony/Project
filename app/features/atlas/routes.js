@@ -9,10 +9,18 @@ import { errorMessage, runChat } from "../../lib/claude.js";
 import { openStream, readJson, sendJson } from "../../lib/http.js";
 import { track } from "../../lib/sources.js";
 import { SpineError, everWritten, list, membership, write } from "../../lib/spine.js";
+
+const RESUME_EXCHANGES = 20; // how many recent questions a resumed conversation shows
 import { MAX_LIMIT, getInsiderTrades } from "./insiders.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SYSTEM_PROMPT = fs.readFileSync(path.join(here, "prompt.md"), "utf8");
+
+// Quick answers think less and search less, so they cost a fraction of a deep
+// one. The tool list stays identical in both modes so the prompt cache holds;
+// the search limit travels in the user's turn instead.
+const DEPTH = { quick: "low", deep: "high" };
+export const QUICK_PREFIX = "[Quick answer: at most two web searches, no rating card, a short reply.]\n";
 
 const TOOLS = [
   // Server-side web search gives the analyst current prices and news.
@@ -77,6 +85,7 @@ async function chat(req, res) {
   const text = typeof body.message === "string" ? body.message.trim() : "";
   if (!text) return sendJson(res, 400, { error: "message is required" });
   checkTyped(text);
+  const depth = body.depth === "quick" ? "quick" : "deep";
   const [conversationId, history] = await loadConversation("atlas", body.conversationId);
 
   const send = openStream(res);
@@ -86,9 +95,9 @@ async function chat(req, res) {
       feature: "atlas",
       system: SYSTEM_PROMPT,
       tools: TOOLS,
-      effort: "high",
+      effort: DEPTH[depth],
       history,
-      userContent: text,
+      userContent: depth === "quick" ? QUICK_PREFIX + text : text,
       send,
       statusFor: (block) => (block.type === "server_tool_use" ? "Pulling market data…" : "Reading SEC insider filings…"),
       runTool: async (call) => {
@@ -118,6 +127,53 @@ async function chat(req, res) {
   } finally {
     res.end();
   }
+}
+
+// Rebuilds stored turns into what the page shows: each question with the
+// reply's text, any insider tables, and the cited sources.
+export function exchangesFrom(messages) {
+  const out = [];
+  const toolNames = new Map();
+  let cur = null;
+  for (const m of messages) {
+    if (m.role === "user" && typeof m.content === "string") {
+      const quick = m.content.startsWith(QUICK_PREFIX);
+      cur = { question: quick ? m.content.slice(QUICK_PREFIX.length) : m.content, quick, answer: "", insiders: [], sources: [] };
+      out.push(cur);
+      continue;
+    }
+    if (!cur || !Array.isArray(m.content)) continue;
+    for (const b of m.content) {
+      if (m.role === "assistant" && b.type === "text") {
+        cur.answer += b.text;
+        for (const c of b.citations || []) {
+          if (c.url && !cur.sources.some((x) => x.url === c.url)) cur.sources.push({ url: c.url, title: c.title || c.url });
+        }
+      } else if (b.type === "tool_use") toolNames.set(b.id, b.name);
+      else if (b.type === "tool_result" && !b.is_error && toolNames.get(b.tool_use_id) === "sec_insider_trades") {
+        try {
+          const data = JSON.parse(typeof b.content === "string" ? b.content : "");
+          if (data?.found) cur.insiders.push(data);
+        } catch {
+          // Not JSON: an error message the model already saw. Nothing to show.
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// GET ?id=<conversation id>, or the latest Atlas conversation when omitted.
+async function getConversation(req, res) {
+  let id = new URL(req.url, "http://x").searchParams.get("id");
+  if (!id) {
+    const [last] = await list("chat.turn", { match: { feature: "atlas" }, limit: 1 });
+    if (!last) return sendJson(res, 200, { conversationId: null, exchanges: [] });
+    id = last.payload.conversation_id;
+  }
+  const [conversationId, history] = await loadConversation("atlas", id);
+  if (!history.length) return sendJson(res, 200, { conversationId: null, exchanges: [] });
+  sendJson(res, 200, { conversationId, exchanges: exchangesFrom(history).slice(-RESUME_EXCHANGES) });
 }
 
 // The watchlist, each ticker with the latest rating Atlas issued for it.
@@ -164,6 +220,7 @@ export default {
   publicDir: path.join(here, "public"),
   routes: {
     "POST api/chat": chat,
+    "GET api/conversation": getConversation,
     "GET api/watchlist": getWatchlist,
     "POST api/watchlist": setWatch,
     "GET api/people": getPeople,

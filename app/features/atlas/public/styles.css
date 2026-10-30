@@ -459,3 +459,20 @@ button:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); ou
 .pc-details-body { display: grid; gap: 8px; margin-top: 10px; }
 .tm-stats small { font: 11px var(--mono); color: var(--muted); }
 .tm-fine { font-size: 12px; margin: 0; }
+
+/* Round 3: resume, new chat, depth switch */
+.new-chat { font: 500 12px var(--mono); color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; cursor: pointer; }
+.new-chat:hover { color: var(--accent); border-color: var(--accent); }
+.resume-note { font: 12px var(--mono); color: var(--muted); text-align: center; margin: 0 0 18px; }
+.msg-user .bubble[data-depth]::before { content: attr(data-depth); display: block; font: 500 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.depth { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; border: 0; padding: 0; margin: 8px 0 0; }
+.depth label { cursor: pointer; }
+.depth input { position: absolute; opacity: 0; pointer-events: none; }
+.depth label span { display: inline-block; font: 500 12px var(--mono); padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
+.depth input:checked + span { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.depth input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.depth-hint { font-size: 11px; }
+.pc-order { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pc-copy { font: 500 12px var(--mono); color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 6px; padding: 6px 11px; cursor: pointer; }
+.pc-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pc-order-text { font: 12px var(--mono); overflow-wrap: anywhere; }

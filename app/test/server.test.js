@@ -150,6 +150,36 @@ test("Atlas: the custom tool runs and its result goes back to Claude", async () 
   assert.equal(result.is_error, true); // both ticker and person: rejected before any lookup
 });
 
+test("Atlas: quick answers run at low effort with the same tools", async () => {
+  const fake = fakeClaude([{ content: [{ type: "text", text: "Short answer." }] }]);
+  setClaudeClient(fake);
+  await (await call("/atlas/api/chat", { method: "POST", body: { message: "What is R?", depth: "quick" } })).text();
+  assert.equal(fake.calls[0].output_config.effort, "low");
+  assert.match(fake.calls[0].messages.at(-1).content, /^\[Quick answer:/);
+  assert.equal(fake.calls[0].tools.find((t) => t.name === "web_search").max_uses, 5, "tool list unchanged, so the cache holds");
+});
+
+test("Atlas: the last conversation comes back on reload", async () => {
+  const fake = fakeClaude([
+    { content: [{ type: "tool_use", id: "tu_9", name: "sec_insider_trades", input: { ticker: "ZZZZ" } }], stop_reason: "tool_use" },
+    { content: [{ type: "text", text: "No filings.", citations: [{ url: "https://example.com/a", title: "A" }] }] },
+  ]);
+  setClaudeClient(fake);
+  const events = parseEvents(await (await call("/atlas/api/chat", { method: "POST", body: { message: "Insiders at ZZZZ?", depth: "quick" } })).text());
+  const id = events.find((e) => e.event === "meta").data.conversationId;
+  const latest = await (await call("/atlas/api/conversation")).json();
+  assert.equal(latest.conversationId, id);
+  const last = latest.exchanges.at(-1);
+  assert.equal(last.question, "Insiders at ZZZZ?", "the quick prefix is hidden");
+  assert.equal(last.quick, true);
+  assert.equal(last.answer, "No filings.");
+  assert.deepEqual(last.sources, [{ url: "https://example.com/a", title: "A" }]);
+  const byId = await (await call(`/atlas/api/conversation?id=${id}`)).json();
+  assert.equal(byId.exchanges.length, 1);
+  const unknown = await (await call("/atlas/api/conversation?id=00000000-0000-4000-8000-00000000abcd")).json();
+  assert.deepEqual(unknown, { conversationId: null, exchanges: [] });
+});
+
 test("a refused reply is not saved", async () => {
   setClaudeClient(fakeClaude([{ content: [], stop_reason: "refusal" }]));
   const before = (await list("chat.turn")).length;

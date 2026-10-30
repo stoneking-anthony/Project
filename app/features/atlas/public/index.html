@@ -28,7 +28,7 @@
           <div class="brand-sub">Equity Research Desk</div>
         </div>
       </div>
-      <div class="desk-status"><span class="live-dot"></span><span>Analyst online</span></div>
+      <button type="button" class="new-chat" id="new-chat">+ New chat</button>
     </header>
 
     <nav class="watchlist is-empty" id="watchlist" aria-label="Watchlist">
@@ -61,6 +61,11 @@
       </section>
     </main>
 
+    <fieldset class="depth" aria-label="Answer depth">
+      <label><input type="radio" name="depth" value="quick" checked> <span>Quick</span></label>
+      <label><input type="radio" name="depth" value="deep"> <span>Deep</span></label>
+      <span class="depth-hint muted" id="depth-hint">Quick: shorter, faster, cheaper. Deep: full research with more searches; costs the most.</span>
+    </fieldset>
     <form class="composer" id="composer">
       <textarea id="input" rows="1" placeholder="Ask about a stock or the market…" autocomplete="off"></textarea>
       <button id="send" type="submit" aria-label="Send">

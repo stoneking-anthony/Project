@@ -112,6 +112,17 @@ function verdictHtml(sim, plan, riskDollars, range) {
 
 let planSeq = 0;
 
+// The plan as a bracket order, ready to paste into a broker's order screen.
+function orderTicket(ticker, long, shares, st) {
+  if (!ticker || shares < 1 || ![st.entry, st.stop, st.t1].every(isNum)) return "";
+  const p = (n) => n.toFixed(2);
+  const half = Math.floor(shares / 2);
+  const exits = isNum(st.t2) && half >= 1
+    ? `take profit ${half} at ${p(st.t1)}, ${shares - half} at ${p(st.t2)}`
+    : `take profit at ${p(st.t1)}`;
+  return `${long ? "BUY" : "SELL SHORT"} ${shares} ${ticker} limit ${p(st.entry)} · stop loss ${p(st.stop)} · ${exits}`;
+}
+
 function planCard(original) {
   const id = `plan${++planSeq}`;
   const long = original.direction !== "short";
@@ -163,6 +174,7 @@ function planCard(original) {
       <button type="button" class="pc-reset" hidden>Reset to Atlas's plan</button>
     </div>
     <p class="pc-size"></p>
+    <div class="pc-order"><button type="button" class="pc-copy">Copy order</button><span class="pc-order-text muted"></span></div>
     ${original.entry_condition ? `<p class="pc-rule"><span class="label">Enter only if</span> ${escapeHtml(original.entry_condition)}</p>` : ""}
     ${original.exit_rules ? `<p class="pc-rule"><span class="label">Exit plan</span> ${escapeHtml(original.exit_rules)}</p>` : ""}
     ${original.invalidation ? `<p class="pc-rule"><span class="label">Wrong if</span> ${escapeHtml(original.invalidation)}</p>` : ""}
@@ -184,6 +196,9 @@ function planCard(original) {
   const volInput = card.querySelector(`#${id}-vol`);
   let rangeTimer = 0;
   const num = (el) => (el.value === "" ? null : Number(el.value));
+  const copyBtn = $(".pc-copy");
+  const orderText = $(".pc-order-text");
+  let order = "";
 
   let timer = 0;
   const run = () => {
@@ -208,6 +223,9 @@ function planCard(original) {
     } else {
       sizeLine.innerHTML = riskPerShare ? `<span class="muted">Less than one share fits this risk at this stop distance.</span>` : "";
     }
+    order = orderTicket(original.ticker, long, shares, state);
+    copyBtn.hidden = !order;
+    orderText.textContent = order;
     const jumpDay = earningsDay(original.next_earnings, original.earnings_time);
     const knownMove = isNum(original.earnings_move_pct);
     const earningsMove = knownMove ? original.earnings_move_pct : isNum(state.vol) ? state.vol * 3 : null;
@@ -268,6 +286,20 @@ function planCard(original) {
     const v = Number(risk.value);
     currentRiskDollars = v > 0 ? v : RISK_DEFAULT;
     schedule();
+  });
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(order);
+      copyBtn.textContent = "Copied";
+    } catch {
+      // No clipboard access: select the text so it can be copied by hand.
+      const range = document.createRange();
+      range.selectNodeContents(orderText);
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+      copyBtn.textContent = "Selected: copy it";
+    }
+    setTimeout(() => (copyBtn.textContent = "Copy order"), 2000);
   });
   reset.addEventListener("click", () => {
     Object.assign(state, { entry: original.entry, stop: original.stop, t1: firstTargets[0] ?? null, t2: firstTargets[1] ?? null, horizon: original.horizon || "today", vol: isNum(original.daily_vol_pct) ? original.daily_vol_pct : null });
