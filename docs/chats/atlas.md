@@ -18,7 +18,7 @@ All done:
 | Rating cards (not stored) | `stock.rating` events |
 
 ## Requests to the mastermind
-_None open._
+- **2026-10-30 · A market-data source (price history).** The time machine replays a trade as random price paths at a volatility Atlas finds by web search. Real daily and 5-minute bars would let it replay actual past sessions instead (bootstrap the stock's own days, so trends, fat tails and quiet periods are its real ones), and they'd also make charts, a scanner, and checking volatility instead of searching for it possible. Proposal: a `live` source `market-data` (read on demand, never stored, per DECISIONS 004) behind one module, `app/lib/prices.js`, so any feature can use it. Needs a provider choice and probably a key (Polygon, Alpaca, Tiingo, or Stooq for free daily bars). Nothing is built against it yet.
 
 ## Answered (2026-09-30)
 - **Docs not on `main`** → PR [stoneking-anthony/Project#1](https://github.com/stoneking-anthony/Project/pull/1) is open and waiting on the user to merge.

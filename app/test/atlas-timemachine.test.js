@@ -103,3 +103,28 @@ test("review raises no warnings on a sensible plan (notes are allowed)", () => {
   const notes = globalThis.reviewPlan(plan, simulateTrade(plan));
   assert.deepEqual(notes.filter((n) => n.level === "warn"), []);
 });
+
+test("an earnings jump inside the hold raises stop-outs and gap losses", () => {
+  const plan = { ...base, stop: 95, target: 110, dailyVolPct: 2.5, costBps: 5, horizon: { days: 10 } };
+  const calm = simulateTrade(plan);
+  const earnings = simulateTrade({ ...plan, events: [{ day: 4, movePct: 9 }] });
+  assert.equal(earnings.eventsInside, 1);
+  assert.ok(earnings.pStop > calm.pStop + 0.05, `stops: ${calm.pStop} -> ${earnings.pStop}`);
+  assert.ok(earnings.gappedStopShare > calm.gappedStopShare, "more stops skipped at the open");
+  assert.ok(earnings.worst5R < calm.worst5R - 0.3, `tail: ${calm.worst5R} -> ${earnings.worst5R}`);
+  assert.ok(earnings.pointsNeeded > calm.pointsNeeded, "gap slippage raises the edge needed");
+});
+
+test("events outside the hold are ignored", () => {
+  const plan = { ...base, horizon: { days: 3 } };
+  assert.equal(simulateTrade({ ...plan, events: [{ day: 9, movePct: 9 }] }).eventsInside, 0);
+  assert.equal(simulateTrade({ ...plan, events: [{ day: 1, movePct: 9 }] }).eventsInside, 0);
+});
+
+test("volatility range brackets the main result", () => {
+  const plan = { ...base, horizon: { minutesLeft: 390 } };
+  const main = simulateTrade(plan);
+  const range = globalThis.volatilityRange(plan, main);
+  assert.ok(range.pNeither[0] <= main.pNeither && main.pNeither <= range.pNeither[1], JSON.stringify(range.pNeither));
+  assert.ok(range.pNeither[1] - range.pNeither[0] > 0.05, "higher volatility resolves more trades");
+});

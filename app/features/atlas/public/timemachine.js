@@ -79,7 +79,10 @@
   }
 
   // plan: { direction: "long"|"short", entry, stop, target, target2?, dailyVolPct,
-  //         horizon: { days } or { minutesLeft }, costBps, runs, seed }
+  //         horizon: { days } or { minutesLeft }, costBps, runs, seed,
+  //         events: [{ day, movePct }] }
+  // An event is an overnight jump before trading day `day` (2 = tomorrow's
+  // open), e.g. an earnings report, sized so its average absolute move is movePct.
   // With target2, the plan scales out: half at target, the stop moves to the
   // entry (breakeven), and the rest runs to target2, the new stop, or the end.
   function simulateTrade(plan) {
@@ -108,9 +111,18 @@
     const stepSd = Math.sqrt((dayVar * (1 - overnightShare)) / stepsPerDay);
     const gapSd = Math.sqrt(dayVar * overnightShare);
     const drift = -0.5 * stepSd * stepSd; // keeps the expected price flat
+    // Jumps keyed by the step that opens their day. Normal draws scaled so the
+    // average absolute jump is movePct (E|Z| = sqrt(2/pi)).
+    const jumps = new Map();
+    for (const ev of Array.isArray(plan.events) ? plan.events : []) {
+      if (!isNum(ev?.day) || !isNum(ev?.movePct) || ev.movePct <= 0 || ev.day < 2 || ev.day > days) continue;
+      const step = Math.round((ev.day - 1) * stepsPerDay) + 1;
+      jumps.set(step, (jumps.get(step) || 0) + (ev.movePct / 100) * Math.sqrt(Math.PI / 2));
+    }
 
     const rand = mulberry32(plan.seed ?? hashSeed(`${plan.direction}|${entry}|${stop}|${target}|${plan.dailyVolPct}|${days}`));
-    const t = makeStudentT(makeNormal(rand), T_DF);
+    const normal = makeNormal(rand);
+    const t = makeStudentT(normal, T_DF);
 
     let hitTarget = 0;
     let hitTarget2 = 0;
@@ -131,8 +143,10 @@
       let lastPrice = entry;
       let done = false;
       for (let s = 1; s <= totalSteps && !done; s++) {
-        const dayBoundary = gapSd > 0 && s > 1 && (s - 1) % stepsPerDay === 0;
+        const jumpSd = jumps.get(s) || 0;
+        const dayBoundary = (gapSd > 0 && s > 1 && (s - 1) % stepsPerDay === 0) || jumpSd > 0;
         logP += drift + stepSd * t() + (dayBoundary ? gapSd * t() - 0.5 * gapSd * gapSd : 0);
+        if (jumpSd > 0) logP += jumpSd * normal() - 0.5 * jumpSd * jumpSd;
         const price = Math.exp(logP);
         lastPrice = price;
         const stopHit = long ? price <= activeStop : price >= activeStop;
@@ -232,6 +246,7 @@
       avgLossR: lossR,
       pointsNeeded,
       noEdgeR,
+      eventsInside: jumps.size,
       pStop: hitStop / runs,
       pNeither: (runs - hitTarget - hitStop) / runs,
       marginOfError: moe,
@@ -264,8 +279,11 @@
     if (sim.costR > 0.1) {
       notes.push({ level: "warn", text: `Trading costs eat ${pct(sim.costR)} of what you risk on each trade. A wider stop with a smaller position costs less per dollar risked.` });
     }
-    if (sim.gappedStopShare > 0.15) {
+    if (sim.gappedStopShare > 0.15 && !sim.eventsInside) {
       notes.push({ level: "info", text: `${pct(sim.gappedStopShare)} of stop-outs happened at an overnight gap, past the stop. You can lose more than planned when the stock opens far away.` });
+    }
+    if (sim.eventsInside > 0) {
+      notes.unshift({ level: "warn", text: `Earnings fall inside this hold. The stock can open far from your stop, so a loss can be bigger than planned: ${pct(sim.gappedStopShare)} of stop-outs here filled past the stop.` });
     }
     if (sim.rewardRisk < 1) {
       notes.push({ level: "info", text: `The target is closer than the stop, so you need to be right more often than you're wrong just to break even.` });
@@ -273,7 +291,20 @@
     return notes;
   }
 
+  // The same plan at volatility a quarter lower and a third higher. The odds
+  // move a lot with volatility, so the card shows them as a range.
+  // `main` (the full run at the stated volatility) is always inside the range.
+  function volatilityRange(plan, main = null, runs = 4000) {
+    const lo = simulateTrade({ ...plan, runs, dailyVolPct: plan.dailyVolPct * 0.75 });
+    const hi = simulateTrade({ ...plan, runs, dailyVolPct: plan.dailyVolPct * 1.33 });
+    if (!lo.ok || !hi.ok) return null;
+    const all = main?.ok ? [lo, hi, main] : [lo, hi];
+    const span = (k) => [Math.min(...all.map((r) => r[k])), Math.max(...all.map((r) => r[k]))];
+    return { pTarget: span("pTarget"), pStop: span("pStop"), pNeither: span("pNeither") };
+  }
+
   globalThis.simulateTrade = simulateTrade;
+  globalThis.volatilityRange = volatilityRange;
   globalThis.reviewPlan = reviewPlan;
   globalThis.checkTradePlan = checkPlan;
 })();

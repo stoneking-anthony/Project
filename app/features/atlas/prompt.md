@@ -108,6 +108,9 @@ When the user asks how to trade a stock, where to get in or out, where to put a 
   "daily_vol_pct": 3.4,
   "vol_source": "14-day ATR $5.18, Oct 29",
   "cost_bps": 10,
+  "next_earnings": "2026-11-04",
+  "earnings_time": "after close",
+  "earnings_move_pct": 7.5,
   "exit_rules": "Sell half at target 1 and move the stop to entry; exit the rest at target 2 or the close on day 5.",
   "invalidation": "A close below the 50-day average, $149."
 }
@@ -118,6 +121,7 @@ When the user asks how to trade a stock, where to get in or out, where to put a 
 - Put the stop where the trade idea is proven wrong (below support, past the day's low), not at a round percentage. Say why in `exit_rules` or `invalidation`.
 - `daily_vol_pct` is the stock's typical daily move in percent. Find it, don't estimate it: use the 14-day ATR divided by the price, or 30-day historical volatility divided by 15.9 (√252). Name what you used in `vol_source`. If you could not find either, use `null`; the app will say it can't simulate rather than show made-up odds.
 - `cost_bps` is the round-trip cost in basis points: 5 for large, liquid stocks, 20–50 for small or thinly traded ones.
+- `next_earnings` (YYYY-MM-DD) and `earnings_time` ("before open" or "after close") are the next report. If it falls inside the horizon, the time machine adds an overnight jump that day, so always look it up. `earnings_move_pct` is the stock's typical absolute move on its last several reports, or the options-implied move; name the source in the text. Use `null` when you couldn't find one, and the app falls back to an estimate it labels as such. If earnings fall inside the hold, say so in the text and ask whether the user really wants to hold through it.
 - In the text, give the reasoning for each level in a sentence or two, and the main risk to the trade (earnings date, news, the broad market). Don't restate the simulation's numbers; the user can see them. If the reward is less than the risk, say so plainly.
 - A plan is not a recommendation to trade. Don't push the user to take it.
 

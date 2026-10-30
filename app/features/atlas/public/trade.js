@@ -32,6 +32,24 @@ function parseHorizon(text) {
   return { minutesLeft: Math.max(5, left), label: `rest of today (${Math.floor(left / 60)}h ${left % 60}m left)` };
 }
 
+// Trading day (1 = today) on whose open a report's price jump lands, or null.
+// Weekdays only; market holidays are ignored, which can shift it by a day.
+function earningsDay(dateStr, when, now = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || "")) return null;
+  const todayNy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(now);
+  const d = new Date(`${todayNy}T12:00:00Z`);
+  const target = new Date(`${dateStr}T12:00:00Z`);
+  if (target < d) return null;
+  let day = 1;
+  while (d < target) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) day++;
+  }
+  // Before the open: the jump lands on that day's open. After the close: the next day's.
+  const jumpDay = /after/i.test(when || "") ? day + 1 : day;
+  return jumpDay >= 2 ? jumpDay : null;
+}
+
 const fmtR = (r) => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`;
 const fmtPctPlain = (p) => `${Math.round(p * 100)}%`;
 const fmtUsd = (n) => `${n < 0 ? "−" : n > 0 ? "+" : ""}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -67,7 +85,9 @@ function simDetailsHtml(sim, riskDollars) {
     <p class="muted tm-fine">${sim.runs.toLocaleString()} runs, so the percentages can be off by about ±${(sim.marginOfError * 100).toFixed(1)} points. "R" is the amount you risk: 1R = ${fmtUsd(riskDollars).replace("+", "")} here.</p>`;
 }
 
-function verdictHtml(sim, plan, riskDollars) {
+const rangeText = (r, k) => (r ? ` <span class="muted rng">${fmtPctPlain(r[k][0])}–${fmtPctPlain(r[k][1])}</span>` : "");
+
+function verdictHtml(sim, plan, riskDollars, range) {
   const seg = (p, cls) => (p > 0 ? `<span class="seg ${cls}" style="flex-grow:${p}"></span>` : "");
   const loss = -sim.noEdgeR * riskDollars;
   const edgeLine =
@@ -80,11 +100,12 @@ function verdictHtml(sim, plan, riskDollars) {
   const t2 = sim.scaleOut && sim.pTarget2 > 0 ? ` <span class="muted">(${fmtPctPlain(sim.pTarget2)} went on to target 2)</span>` : "";
   return `
     <div class="tm-figs">
-      <span><i class="sw win"></i>Target ${sim.scaleOut ? "1 " : ""}hit first <b>${fmtPctPlain(sim.pTarget)}</b>${t2}</span>
-      <span><i class="sw loss"></i>Stopped out <b>${fmtPctPlain(sim.pStop)}</b></span>
-      <span><i class="sw open"></i>Neither, still open <b>${fmtPctPlain(sim.pNeither)}</b></span>
+      <span><i class="sw win"></i>Target ${sim.scaleOut ? "1 " : ""}hit first <b>${fmtPctPlain(sim.pTarget)}</b>${rangeText(range, "pTarget")}${t2}</span>
+      <span><i class="sw loss"></i>Stopped out <b>${fmtPctPlain(sim.pStop)}</b>${rangeText(range, "pStop")}</span>
+      <span><i class="sw open"></i>Neither, still open <b>${fmtPctPlain(sim.pNeither)}</b>${rangeText(range, "pNeither")}</span>
     </div>
     <div class="tm-split" aria-hidden="true">${seg(sim.pTarget, "win")}${seg(sim.pNeither, "open")}${seg(sim.pStop, "loss")}</div>
+    ${range ? `<p class="muted tm-fine">Gray ranges: the same plan if the stock moves a quarter less or a third more than ${plan.dailyVolPct}% a day.</p>` : ""}
     <p class="tm-edge">${edgeLine}</p>
     ${notes ? `<ul class="tm-notes">${notes}</ul>` : ""}`;
 }
@@ -101,6 +122,7 @@ function planCard(original) {
     t1: firstTargets[0] ?? null,
     t2: firstTargets[1] ?? null,
     horizon: original.horizon || "today",
+    vol: isNum(original.daily_vol_pct) ? original.daily_vol_pct : null,
   };
   const card = document.createElement("div");
   card.className = "plan-card";
@@ -134,6 +156,8 @@ function planCard(original) {
     <div class="pc-controls">
       <label class="label" for="${id}-hz">Hold for</label>
       <select id="${id}-hz">${horizonOptions.map(([v, l]) => `<option value="${escapeHtml(v)}"${v === state.horizon ? " selected" : ""}>${escapeHtml(l)}</option>`).join("")}</select>
+      <label class="label" for="${id}-vol">Daily move</label>
+      <span class="pc-money"><input id="${id}-vol" type="number" min="0.1" step="0.1" inputmode="decimal" value="${state.vol ?? ""}" placeholder="?">%</span>
       <label class="label" for="${id}-risk">Risk</label>
       <span class="pc-money">$<input id="${id}-risk" type="number" min="1" step="10" inputmode="decimal" value="${currentRiskDollars}"></span>
       <button type="button" class="pc-reset" hidden>Reset to Atlas's plan</button>
@@ -157,6 +181,8 @@ function planCard(original) {
   const inputs = Object.fromEntries(["entry", "stop", "t1", "t2"].map((k) => [k, card.querySelector(`#${id}-${k}`)]));
   const hz = card.querySelector(`#${id}-hz`);
   const risk = card.querySelector(`#${id}-risk`);
+  const volInput = card.querySelector(`#${id}-vol`);
+  let rangeTimer = 0;
   const num = (el) => (el.value === "" ? null : Number(el.value));
 
   let timer = 0;
@@ -182,27 +208,40 @@ function planCard(original) {
     } else {
       sizeLine.innerHTML = riskPerShare ? `<span class="muted">Less than one share fits this risk at this stop distance.</span>` : "";
     }
-    const sim = globalThis.simulateTrade({
+    const jumpDay = earningsDay(original.next_earnings, original.earnings_time);
+    const knownMove = isNum(original.earnings_move_pct);
+    const earningsMove = knownMove ? original.earnings_move_pct : isNum(state.vol) ? state.vol * 3 : null;
+    const simPlan = {
       direction: long ? "long" : "short",
       entry: state.entry,
       stop: state.stop,
       target: state.t1,
       target2: state.t2,
-      dailyVolPct: original.daily_vol_pct,
+      dailyVolPct: state.vol,
       horizon,
       costBps: isNum(original.cost_bps) ? original.cost_bps : 10,
-    });
-    const plan = { ...original, entry: state.entry, dailyVolPct: original.daily_vol_pct };
+      events: jumpDay && earningsMove ? [{ day: jumpDay, movePct: earningsMove }] : [],
+    };
+    const sim = globalThis.simulateTrade(simPlan);
     if (sim.ok) {
-      verdict.innerHTML = verdictHtml(sim, plan, riskDollars || currentRiskDollars);
+      const show = (range) => {
+        verdict.innerHTML = verdictHtml(sim, simPlan, riskDollars || currentRiskDollars, range);
+      };
+      show(null);
+      clearTimeout(rangeTimer);
+      rangeTimer = setTimeout(() => show(globalThis.volatilityRange(simPlan, sim)), 30);
       details.innerHTML = simDetailsHtml(sim, riskDollars || currentRiskDollars);
-      note.textContent = `Time machine: ${sim.runs.toLocaleString()} random price paths at ${original.daily_vol_pct}% daily volatility${original.vol_source ? ` (${original.vol_source})` : ""}, ${original.cost_bps ?? 10} bps costs, ${sim.scaleOut ? "half sold at target 1 and the stop moved to entry, " : ""}no edge assumed. It shows the odds your levels create, not where the stock will go.`;
+      const volBasis = state.vol === original.daily_vol_pct && original.vol_source ? ` (${original.vol_source})` : state.vol !== original.daily_vol_pct ? " (your number)" : "";
+      const earningsBasis = sim.eventsInside
+        ? ` Earnings (${fmtDate(original.next_earnings)}, ${original.earnings_time || "time unknown"}) is modeled as an overnight jump averaging ±${earningsMove.toFixed(1)}%${knownMove ? "" : ", estimated at 3× a normal day because the stock's usual earnings move wasn't found"}.`
+        : "";
+      note.textContent = `Time machine: ${sim.runs.toLocaleString()} random price paths at ${state.vol}% a day${volBasis}, ${original.cost_bps ?? 10} bps costs, ${sim.scaleOut ? "half sold at target 1 and the stop moved to entry, " : ""}no edge assumed.${earningsBasis} It shows the odds your levels create, not where the stock will go.`;
     } else {
       verdict.innerHTML = `<p class="muted">The time machine can't run yet: the plan needs ${escapeHtml(sim.needs.join(", "))}.</p>`;
       details.innerHTML = "";
       note.textContent = "";
     }
-    const edited = state.entry !== original.entry || state.stop !== original.stop || state.t1 !== (firstTargets[0] ?? null) || state.t2 !== (firstTargets[1] ?? null) || state.horizon !== (original.horizon || "today");
+    const edited = state.entry !== original.entry || state.stop !== original.stop || state.t1 !== (firstTargets[0] ?? null) || state.t2 !== (firstTargets[1] ?? null) || state.horizon !== (original.horizon || "today") || state.vol !== (isNum(original.daily_vol_pct) ? original.daily_vol_pct : null);
     reset.hidden = !edited;
     card.classList.toggle("edited", edited);
   };
@@ -221,13 +260,18 @@ function planCard(original) {
     state.horizon = hz.value;
     run();
   });
+  volInput.addEventListener("input", () => {
+    state.vol = num(volInput);
+    schedule();
+  });
   risk.addEventListener("input", () => {
     const v = Number(risk.value);
     currentRiskDollars = v > 0 ? v : RISK_DEFAULT;
     schedule();
   });
   reset.addEventListener("click", () => {
-    Object.assign(state, { entry: original.entry, stop: original.stop, t1: firstTargets[0] ?? null, t2: firstTargets[1] ?? null, horizon: original.horizon || "today" });
+    Object.assign(state, { entry: original.entry, stop: original.stop, t1: firstTargets[0] ?? null, t2: firstTargets[1] ?? null, horizon: original.horizon || "today", vol: isNum(original.daily_vol_pct) ? original.daily_vol_pct : null });
+    volInput.value = state.vol ?? "";
     for (const [key, el] of Object.entries(inputs)) el.value = isNum(state[key]) ? state[key] : "";
     hz.value = state.horizon;
     run();
