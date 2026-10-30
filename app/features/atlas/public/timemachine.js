@@ -122,7 +122,13 @@
 
     const rand = mulberry32(plan.seed ?? hashSeed(`${plan.direction}|${entry}|${stop}|${target}|${plan.dailyVolPct}|${days}`));
     const normal = makeNormal(rand);
-    const t = makeStudentT(normal, T_DF);
+    // Fat-tailed moves come from a pool drawn once per simulation, then picked
+    // at random: one random number per step instead of five. Same distribution.
+    const tDraw = makeStudentT(normal, T_DF);
+    const POOL = 1 << 16;
+    const pool = new Float64Array(POOL);
+    for (let i = 0; i < POOL; i++) pool[i] = tDraw();
+    const t = () => pool[(rand() * POOL) | 0];
 
     let hitTarget = 0;
     let hitTarget2 = 0;

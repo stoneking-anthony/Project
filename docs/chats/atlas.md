@@ -7,6 +7,14 @@
 
 **2026-10-01 · Atlas chat:** pulled `main`, restarted `claude/hopeful-hypatia-ulqy2t` from it, and read `app/README.md`. All 50 app tests pass against a local Postgres. Next: build only inside `app/features/atlas/`, through `lib/spine.js` and registered kinds.
 
+**2026-10-30 · Atlas chat: trade plans and the time machine.** Built from a post about Claude day-trading skills, then reworked through five critique rounds. Nothing new is stored and no new kinds were added: plans live in `chat.turn`, simulations rerun in the browser.
+- **Trade plan card** (` ```plan ` block): entry, stop, up to two targets, a position-size calculator, editable levels, horizon and volatility, a Copy order button (a second tap when the plan has warnings), and a stale banner with one-tap refresh for plans from an earlier session.
+- **Time machine** (`public/timemachine.js`): 10,000 fat-tailed random price paths with overnight gaps, earnings jumps, scale-out exits and costs. It reports odds with a volatility range, and how many points better than chance the user's read must be, computed exactly from costs and gap slippage.
+- **Movers brief** (` ```movers ` block) from a "What's moving?" button on the watchlist.
+- **Reopens the last conversation** on load (`GET api/conversation`, read from `chat.turn`), with a New chat button.
+- **Quick/Deep switch**: Quick runs at low effort, with the search limit carried in the user turn so the tool list and prompt cache stay the same.
+- 71 tests pass. Not built, and waiting on requests below: real price history, a scanner, entry alerts, saved risk rules.
+
 ## Storage to migrate
 All done:
 

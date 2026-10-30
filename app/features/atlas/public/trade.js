@@ -169,8 +169,10 @@ function planCard(original, ctx = {}) {
       <div class="pc-meta muted">${original.price_as_of ? `prices as of ${escapeHtml(original.price_as_of)}` : ""}</div>
     </div>
     ${stale ? `<div class="pc-stale" role="status"><b>Written ${escapeHtml(issuedAt.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }))}.</b> These prices are from an earlier session, so the levels and odds may no longer fit. <button type="button" class="pc-refresh">Refresh this plan</button></div>` : ""}
-    <section class="pc-verdict" aria-live="polite"></section>
+    <div class="pc-tm-title"><span class="label">Time machine</span><span class="muted">10,000 runs of this trade</span></div>
+    <section class="pc-verdict" aria-live="polite"><p class="muted">Running 10,000 simulations…</p></section>
     <div class="pc-levels">${levels.join("")}</div>
+    <p class="pc-tip muted">Change any number. The odds rerun instantly on your phone, at no cost.</p>
     <div class="pc-controls">
       <label class="label" for="${id}-hz">Hold for</label>
       <select id="${id}-hz">${horizonOptions.map(([v, l]) => `<option value="${escapeHtml(v)}"${v === state.horizon ? " selected" : ""}>${escapeHtml(l)}</option>`).join("")}</select>
@@ -257,8 +259,9 @@ function planCard(original, ctx = {}) {
     const sim = globalThis.simulateTrade(simPlan);
     warnings = sim.ok ? (globalThis.reviewPlan(simPlan, sim) || []).filter((n) => n.level === "warn").map((n) => n.text) : [];
     if (sim.ok) {
+      const t2Note = isNum(state.t2) && !sim.scaleOut ? `<p class="muted tm-fine">Target 2 is ignored: it has to be beyond target 1.</p>` : "";
       const show = (range) => {
-        verdict.innerHTML = verdictHtml(sim, simPlan, riskDollars || currentRiskDollars, range);
+        verdict.innerHTML = verdictHtml(sim, simPlan, riskDollars || currentRiskDollars, range) + t2Note;
       };
       show(null);
       clearTimeout(rangeTimer);
@@ -337,7 +340,19 @@ function planCard(original, ctx = {}) {
     hz.value = state.horizon;
     run();
   });
-  run();
+  // Simulate only once the card is on screen, so reopening a long
+  // conversation doesn't freeze the page running every card at once.
+  if ("IntersectionObserver" in window) {
+    const seen = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        seen.disconnect();
+        run();
+      }
+    }, { rootMargin: "200px" });
+    seen.observe(card);
+  } else {
+    run();
+  }
   return card;
 }
 

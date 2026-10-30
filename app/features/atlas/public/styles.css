@@ -483,3 +483,8 @@ button:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); ou
 .pc-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pc-confirm { margin: 0; padding: 10px 12px 10px 28px; border-radius: 8px; background: color-mix(in srgb, var(--hold) 10%, transparent); font-size: 13px; display: grid; gap: 4px; }
 .pc-confirm-head { list-style: none; margin-left: -16px; }
+
+/* Round 5: time machine label and tip */
+.pc-tm-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: -6px; }
+.pc-tm-title .muted { font-size: 12px; }
+.pc-tip { font-size: 12px; margin: -4px 0 0; }
